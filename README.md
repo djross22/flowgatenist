@@ -30,7 +30,7 @@ Bibtex entry:
 We recommend installing Python with the latest Annaconda distribution from: https://www.anaconda.com/products/individual.
 
 ### Download and install FlowGateNIST
-Download the FlowGateNIST package from GitHub ([link](https://gitlab.nist.gov/gitlab/gsf-ims/flowgatenist)) and save the source code in a local directory on your computer (e.g., on a Windows PC, C:\Users\username\Documents\Python Scripts\flowgatenist).
+Download the FlowGateNIST package from GitHub ([link](https://github.com/djross22/flowgatenist)) and save the source code in a local directory on your computer (e.g., on a Windows PC, C:\Users\username\Documents\Python Scripts\flowgatenist).
 
 Open a Command Prompt (Windows) or the Terminal applicaiton (Mac) and navigate to the directory where you saved the FlowcCalNIST source code. Then install the FlowGateNIST package in editable mode using the command, "pip install -e ."
 ```
