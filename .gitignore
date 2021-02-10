@@ -1,0 +1,11 @@
+__pycache__
+*.fcs
+*.fcs_pkl
+*.stan_samp_pkl
+*.pdf
+flowgatenist.egg-info/**
+*.pkl
+*.stan_model_pkl
+*.rds
+*.Rhistory
+example data/Jupyter notebooks/.ipynb_checkpoints/**
