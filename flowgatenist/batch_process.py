@@ -282,15 +282,15 @@ def auto_find_files(ext='fcs_pkl', exclude_string=None, samples=None):
     all_files = glob.glob("*." + ext)
     blank_file_list = glob.glob("*blank*." + ext)
     bead_files = glob.glob("*bead*." + ext)
-    if exclude_string is not None:
-        exclude_files = glob.glob("*" + exclude_string + '*' + ext)
-        coli_files = sorted(list(set(all_files) - set(blank_file_list) - set(bead_files) - set(exclude_files)))
-    else:
-        coli_files = sorted(list(set(all_files) - set(blank_file_list) - set(bead_files)))
+    coli_files = sorted(list(set(all_files) - set(blank_file_list) - set(bead_files)))
         
     if samples is not None:
         coli_files = [glob.glob("*" + sam + "*." + ext) for sam in samples]
         coli_files = [item for sublist in coli_files for item in sublist]
+    
+    if exclude_string is not None:
+        exclude_files = glob.glob("*" + exclude_string + '*' + ext)
+        coli_files = sorted(list(set(coli_files) - set(exclude_files)))
     
     return coli_files, blank_file_list, bead_files
 
@@ -336,10 +336,9 @@ def fcs_to_dataframe(data_directory, samples=None, blank_file=None,
     if exclude_string is None:
         exclude_string = 'adjust'
 
-    coli_files, blank_file_list, bead_file_list = auto_find_files(ext='fcs', exclude_string=exclude_string)
-    if samples is not None:
-        coli_files = [glob.glob("*" + sam + "*.fcs") for sam in samples]
-        coli_files = [item for sublist in coli_files for item in sublist]
+    coli_files, blank_file_list, bead_file_list = auto_find_files(ext='fcs',
+                                                                  exclude_string=exclude_string,
+                                                                  samples=samples)
         
     earliest_sample_time = pd.Timestamp(2100, 1, 1, 12)
     for file in coli_files:
@@ -547,10 +546,8 @@ def background_subtract_gating(data_directory,
     if update_progress:
         print('Start background_subtract_gating: ' + str(pd.Timestamp.now().round('s')))
 
-    coli_files, blank_file_list, bead_file_list = auto_find_files()
-    if samples is not None:
-        coli_files = [glob.glob("*" + sam + "*.fcs_pkl") for sam in samples]
-        coli_files = [item for sublist in coli_files for item in sublist]
+    coli_files, blank_file_list, bead_file_list = auto_find_files(samples=samples)
+    
     if update_progress:
         print("\n".join(['    ' + f for f in coli_files]))
         
@@ -1109,10 +1106,8 @@ def apply_background_subtract_gate(data_directory,
     pdf_file = 'applied background gating plots.pdf'
     pdf = PdfPages(pdf_file)
     
-    coli_files, blank_file_list, bead_file_list = auto_find_files()
-    if samples is not None:
-        coli_files = [glob.glob("*" + sam + "*.fcs_pkl") for sam in samples]
-        coli_files = [item for sublist in coli_files for item in sublist]
+    coli_files, blank_file_list, bead_file_list = auto_find_files(samples=samples)
+    
     if update_progress:
         print("\n".join(['    ' + f for f in coli_files]))
         
@@ -1471,10 +1466,8 @@ def singlet_gating_width(data_directory,
     if update_progress:
         print('Starting singlet_fit gmm... ' + str(pd.Timestamp.now().round('s')))
 
-    coli_files, blank_file_list, bead_file_list = auto_find_files()
-    if samples is not None:
-        coli_files = [glob.glob("*" + sam + "*.fcs_pkl") for sam in samples]
-        coli_files = [item for sublist in coli_files for item in sublist]
+    coli_files, blank_file_list, bead_file_list = auto_find_files(samples=samples)
+    
     if update_progress:
         print("\n".join(['    ' + f for f in coli_files]))
     
@@ -1972,10 +1965,8 @@ def singlet_gating(data_directory,
     if update_progress:
         print('Starting singlet_fit gmm... ' + str(pd.Timestamp.now().round('s')))
 
-    coli_files, blank_file_list, bead_file_list = auto_find_files()
-    if samples is not None:
-        coli_files = [glob.glob("*" + sam + "*.fcs_pkl") for sam in samples]
-        coli_files = [item for sublist in coli_files for item in sublist]
+    coli_files, blank_file_list, bead_file_list = auto_find_files(samples=samples)
+    
     if update_progress:
         print("\n".join(['    ' + f for f in coli_files]))
             
