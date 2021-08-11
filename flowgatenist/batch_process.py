@@ -631,7 +631,7 @@ def background_subtract_gating(data_directory,
         prob_sub_optimal = len(bic_data[bic_data >
                                         bic_data.min() + 0.1*(bic_data.max() -
                                                      bic_data.min())])/len(bic_data)
-        back_init = round(np.log(0.001) / np.log(prob_sub_optimal)).astype(int)
+        back_init = int( round( np.log(0.001) / np.log(prob_sub_optimal) ) )
         back_init = min(200, back_init)
         back_init = max(100, back_init)
         if update_progress:
