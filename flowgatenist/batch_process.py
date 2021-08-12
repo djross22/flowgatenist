@@ -426,7 +426,9 @@ def background_subtract_gating(data_directory,
                                max_events=100000,
                                init_events=30000,
                                update_progress=True,
-                               show_plots=True):
+                               show_plots=True,
+                               x_channel='FSC-H',
+                               y_channel='SSC-H'):
 
     """
     This batch process method performs a background subtraction gating to select
@@ -514,6 +516,12 @@ def background_subtract_gating(data_directory,
         If True, the method dynamically shows plots.
         If False, it just saves the plots to a pdf file without showing them.
 
+    x_channel : str
+        used to identify the FSC channel name 
+
+    y_channel : str
+        used to identify the SSC channel name
+
     Returns
     -------
     None
@@ -556,7 +564,7 @@ def background_subtract_gating(data_directory,
     # flowgatenist is set up to use background data from a blank sample
     # that is ideally run right at the beginneing of an experiment,
     # before any cell samples are run. The background data is used by
-    # the gating procedure to detirmine whether an event is more likely
+    # the gating procedure to determine whether an event is more likely
     # to be a background event or a cell event.
     # It is best to use a buffer blank measured before any cell samples
     if back_file is None:
@@ -570,24 +578,24 @@ def background_subtract_gating(data_directory,
     with open(back_file, 'wb') as f:
         pickle.dump(back_data, f)
 
-    back_data.flow_frame = back_data.flow_frame.loc[back_data.flow_frame['FSC-H'] > 0]
-    back_data.flow_frame = back_data.flow_frame.loc[back_data.flow_frame['SSC-H'] > 0]
-    back_data.flow_frame['log_fsc'] = np.log10(back_data.flow_frame['FSC-H'])
-    back_data.flow_frame['log_ssc'] = np.log10(back_data.flow_frame['SSC-H'])
+    back_data.flow_frame = back_data.flow_frame.loc[back_data.flow_frame[x_channel] > 0]
+    back_data.flow_frame = back_data.flow_frame.loc[back_data.flow_frame[y_channel] > 0]
+    back_data.flow_frame[f'log_{x_channel}'] = np.log10(back_data.flow_frame[x_channel])
+    back_data.flow_frame[f'log_{y_channel}'] = np.log10(back_data.flow_frame[y_channel])
 
     # Plot the scattering data for the background sample and save to pdf file
     if update_progress:
         print('Plotting background 2D histogram, ' + str(pd.Timestamp.now().round('s')))
-    x = back_data.flow_frame['log_fsc']
-    y = back_data.flow_frame['log_ssc']
+    x = back_data.flow_frame[f'log_{x_channel}']
+    y = back_data.flow_frame[f'log_{y_channel}']
     plt.style.use('classic')
     plt.rcParams["figure.figsize"] = [8, 4]
     fig, axs = plt.subplots(1, 2)
     fig.suptitle('Forward and side scatter data from blank samples', size=16)
     for ax, norm in zip(axs, [None, colors.LogNorm()]):
         ax.hist2d(x, y, bins=200, norm=norm);
-        ax.set_xlabel('log10(FSC-H)', rasterized=True, size=14)
-        ax.set_ylabel('log10(SSC-H)', rasterized=True, size=14)
+        ax.set_xlabel(f'log10({x_channel})', rasterized=True, size=14)
+        ax.set_ylabel(f'log10({y_channel})', rasterized=True, size=14)
     pdf.savefig()
     if not show_plots:
         plt.close(fig)
@@ -597,7 +605,7 @@ def background_subtract_gating(data_directory,
     # a number of fixed mixture components, for use in background subtraction
     # for the background fit, there are no fixed components, so the sentax is
     # the same as the scikit-learn GMM
-    gmm_data = back_data.flow_frame.loc[:, ['log_fsc', 'log_ssc']].copy()
+    gmm_data = back_data.flow_frame.loc[:, [f'log_{x_channel}', f'log_{y_channel}']].copy()
 
     if num_back_clusters is None:
         if update_progress:
@@ -631,7 +639,7 @@ def background_subtract_gating(data_directory,
         prob_sub_optimal = len(bic_data[bic_data >
                                         bic_data.min() + 0.1*(bic_data.max() -
                                                      bic_data.min())])/len(bic_data)
-        back_init = round(np.log(0.001) / np.log(prob_sub_optimal)).astype(int)
+        back_init = int(round(np.log(0.001) / np.log(prob_sub_optimal)))
         back_init = min(200, back_init)
         back_init = max(100, back_init)
         if update_progress:
@@ -691,10 +699,10 @@ def background_subtract_gating(data_directory,
                  verticalalignment='bottom', size=16)
     
     for ax in axs:
-        ax.scatter(gmm_data['log_fsc'], gmm_data['log_ssc'], c=labels,
+        ax.scatter(gmm_data[f'log_{x_channel}'], gmm_data[f'log_{y_channel}'], c=labels,
                    cmap='viridis', s=size, rasterized=True)
-        ax.set_xlabel('log10(FSC-H)', size=14)
-        ax.set_ylabel('log10(SSC-H)', size=14)
+        ax.set_xlabel(f'log10({x_channel})', size=14)
+        ax.set_ylabel(f'log10({y_channel})', size=14)
     
     w_factor = 0.2 / gmm.weights_.max()
     for pos, covar, w in zip(gmm.means_, gmm.covariances_, gmm.weights_):
@@ -712,16 +720,16 @@ def background_subtract_gating(data_directory,
     coli_data = [pickle.load(open(file, 'rb')) for file in coli_files]
 
     for i, data in enumerate(coli_data):
-        data.flow_frame = data.flow_frame.loc[data.flow_frame['FSC-H'] > 0]
-        data.flow_frame = data.flow_frame.loc[data.flow_frame['SSC-H'] > 0]
-        data.flow_frame['log_fsc'] = np.log10(data.flow_frame['FSC-H'])
-        data.flow_frame['log_ssc'] = np.log10(data.flow_frame['SSC-H'])
+        data.flow_frame = data.flow_frame.loc[data.flow_frame[x_channel] > 0]
+        data.flow_frame = data.flow_frame.loc[data.flow_frame[y_channel] > 0]
+        data.flow_frame[f'log_{x_channel}'] = np.log10(data.flow_frame[x_channel])
+        data.flow_frame[f'log_{y_channel}'] = np.log10(data.flow_frame[y_channel])
 
         data.metadata._infile = coli_files[i]
         data.metadata._backfile = back_file
         data.metadata._scatter_back_fit = back_fit
 
-    scatter_data = [data.flow_frame[['log_fsc', 'log_ssc']] for data in coli_data]
+    scatter_data = [data.flow_frame[[f'log_{x_channel}', f'log_{y_channel}']] for data in coli_data]
 
     # Plot the 2D histograms for all the E. coli fcs files, and save the
     # plots to the pdf file
@@ -750,11 +758,11 @@ def background_subtract_gating(data_directory,
     for ax, data, name in zip(axs, scatter_data, sample_names):
         ax.text(x=0.05, y=0.95, s=name, horizontalalignment='left', verticalalignment='top',
                 transform=ax.transAxes)
-        ax.hist2d(data['log_fsc'],
-           data['log_ssc'], bins=200,
+        ax.hist2d(data[f'log_{x_channel}'],
+           data[f'log_{y_channel}'], bins=200,
            norm=colors.LogNorm(), rasterized=True);
-        ax.set_xlabel('log10(FSC-H)', size=11)
-        ax.set_ylabel('log10(SSC-H)', size=11)
+        ax.set_xlabel(f'log10({x_channel})', size=11)
+        ax.set_ylabel(f'log10({y_channel})', size=11)
     xlim = axs[0].get_xlim()
     ylim = axs[0].get_ylim()
     pdf.savefig()
@@ -770,7 +778,7 @@ def background_subtract_gating(data_directory,
     # For the GMM that will be used to gate out the non-cell events,
     # combine all the data from the cell data files, so that the same
     # gating in then applied to every cell sample from this batch:
-    gmm_data2 = [data.flow_frame.loc[:, ['log_fsc', 'log_ssc']].copy() for data in coli_data]
+    gmm_data2 = [data.flow_frame.loc[:, [f'log_{x_channel}', f'log_{y_channel}']].copy() for data in coli_data]
     gmm_data2 = [data[:max_events] for data in gmm_data2]
     gmm_data4 = pd.concat(gmm_data2, ignore_index=True)
     gmm_data3 = gmm_data4.sample(n=init_events)
@@ -900,7 +908,7 @@ def background_subtract_gating(data_directory,
         pickle_file = file
 
         frame = data.flow_frame
-        gmm_data = frame[['log_fsc', 'log_ssc']]
+        gmm_data = frame[[f'log_{x_channel}', f'log_{y_channel}']]
 
         meta._scatter_cell_fit = scatter_cell_fit
         back_components = meta.scatter_back_fit.n_components
@@ -927,7 +935,7 @@ def background_subtract_gating(data_directory,
     pickle_file = back_file
 
     frame = data.flow_frame
-    gmm_data = frame[['log_fsc', 'log_ssc']]
+    gmm_data = frame[[f'log_{x_channel}', f'log_{y_channel}']]
 
     meta._scatter_cell_fit = scatter_cell_fit
     back_components = meta.scatter_back_fit.n_components
@@ -967,13 +975,13 @@ def background_subtract_gating(data_directory,
     for ax, data, name in zip(axs, gated_data, sample_names):
         ax.text(x=0.05, y=0.95, s=name, horizontalalignment='left', verticalalignment='top',
                 transform=ax.transAxes)
-        ax.hist2d(data['log_fsc'], data['log_ssc'], bins=200,
+        ax.hist2d(data[f'log_{x_channel}'], data[f'log_{y_channel}'], bins=200,
                   norm=colors.LogNorm(), rasterized=True)
         ax.autoscale(enable=False)
         ax.set_xlim(xlim)
         ax.set_ylim(ylim)
-        ax.set_xlabel('log10(FSC-H)', size=11)
-        ax.set_ylabel('log10(SSC-H)', size=11)
+        ax.set_xlabel(f'log10({x_channel})', size=11)
+        ax.set_ylabel(f'log10({y_channel})', size=11)
     pdf.savefig()
     if not show_plots:
         plt.close(fig)
@@ -993,18 +1001,18 @@ def background_subtract_gating(data_directory,
         ax.set_xlim(xlim)
         ax.set_ylim(ylim)
         
-        labels = scatter_cell_fit.predict(data.loc[:, ['log_fsc', 'log_ssc']]).copy()
+        labels = scatter_cell_fit.predict(data.loc[:, [f'log_{x_channel}', f'log_{y_channel}']]).copy()
         labels[labels < len(f_means)] = 0
 
-        probs = scatter_cell_fit.predict_proba(data.loc[:, ['log_fsc', 'log_ssc']])
+        probs = scatter_cell_fit.predict_proba(data.loc[:, [f'log_{x_channel}', f'log_{y_channel}']])
         size = 15 * probs.max(1) ** 2   # square emphasizes differences
         ax.text(x=0.05, y=0.95, s=name, horizontalalignment='left',
                 verticalalignment='top',
                 transform=ax.transAxes)
-        ax.scatter(data['log_fsc'], data['log_ssc'], c=labels, cmap='viridis',
+        ax.scatter(data[f'log_{x_channel}'], data[f'log_{y_channel}'], c=labels, cmap='viridis',
                    s=size, rasterized=True)
-        ax.set_xlabel('log10(FSC-H)', size=11)
-        ax.set_ylabel('log10(SSC-H)', size=11)
+        ax.set_xlabel(f'log10({x_channel})', size=11)
+        ax.set_ylabel(f'log10({y_channel})', size=11)
     pdf.savefig()
     if not show_plots:
         plt.close(fig)
@@ -1034,7 +1042,9 @@ def apply_background_subtract_gate(data_directory,
                                    ssc_back_cutoff=2.9,
                                    fsc_back_cutoff=2.5,
                                    show_plots=True,
-                                   update_progress=True):
+                                   update_progress=True,
+                                   x_channel='FSC-H',
+                                   y_channel='SSC-H'):
 
     """
     This batch process method applies the background subtraction gating result from gate_file
@@ -1078,6 +1088,12 @@ def apply_background_subtract_gate(data_directory,
     show_plots : Boolean
         If True, the method dynamically shows plots.
         If False, it just saves the plots to a pdf file without showing them. 
+    
+    x_channel : str
+        used to identify the FSC channel name 
+
+    y_channel : str
+        used to identify the SSC channel name
 
     Returns
     -------
@@ -1129,10 +1145,10 @@ def apply_background_subtract_gate(data_directory,
     with open(back_file, 'wb') as f:
         pickle.dump(back_data, f)
 
-    back_data.flow_frame = back_data.flow_frame.loc[back_data.flow_frame['FSC-H'] > 0]
-    back_data.flow_frame = back_data.flow_frame.loc[back_data.flow_frame['SSC-H'] > 0]
-    back_data.flow_frame['log_fsc'] = np.log10(back_data.flow_frame['FSC-H'])
-    back_data.flow_frame['log_ssc'] = np.log10(back_data.flow_frame['SSC-H'])
+    back_data.flow_frame = back_data.flow_frame.loc[back_data.flow_frame[x_channel] > 0]
+    back_data.flow_frame = back_data.flow_frame.loc[back_data.flow_frame[y_channel] > 0]
+    back_data.flow_frame['log_fsc'] = np.log10(back_data.flow_frame[x_channel])
+    back_data.flow_frame['log_ssc'] = np.log10(back_data.flow_frame[y_channel])
 
     # Plot the scattering data for the background sample and save to pdf file
     if update_progress:
@@ -1185,10 +1201,10 @@ def apply_background_subtract_gate(data_directory,
     coli_data = [pickle.load(open(file, 'rb')) for file in coli_files]
 
     for i, (data, file) in enumerate(zip(coli_data, coli_files)):
-        data.flow_frame = data.flow_frame.loc[data.flow_frame['FSC-H'] > 0]
-        data.flow_frame = data.flow_frame.loc[data.flow_frame['SSC-H'] > 0]
-        data.flow_frame['log_fsc'] = np.log10(data.flow_frame['FSC-H'])
-        data.flow_frame['log_ssc'] = np.log10(data.flow_frame['SSC-H'])
+        data.flow_frame = data.flow_frame.loc[data.flow_frame[x_channel] > 0]
+        data.flow_frame = data.flow_frame.loc[data.flow_frame[y_channel] > 0]
+        data.flow_frame['log_fsc'] = np.log10(data.flow_frame[x_channel])
+        data.flow_frame['log_ssc'] = np.log10(data.flow_frame[y_channel])
 
         meta = data.metadata
         
@@ -1353,7 +1369,9 @@ def singlet_gating_width(data_directory,
                          max_events=100000,
                          init_events=30000,
                          update_progress=True,
-                         show_plots=True):
+                         show_plots=True,
+                         height_channel='SSC-H',
+                         width_channel='SSC-W'):
 
     """
     This batch process method performs a gating to select
@@ -1434,7 +1452,13 @@ def singlet_gating_width(data_directory,
         If True, the method dynamically shows plots.
         If False, it just saves the plots to a pdf file without showing them.
 
-    Returns
+    height_channel : str
+        used to identify the SSC height channel name 
+
+    width_channel : str
+        used to identify the SSC width channel name
+
+     Returns
     -------
     None
     """
@@ -1496,24 +1520,24 @@ def singlet_gating_width(data_directory,
     # data to make it plot more linearly vs. SSC-W
     for data in coli_data:
         frame = data.flow_frame
-        frame['adj_log_ssc'] = np.log10(frame['SSC-H'] - ssc_adjustment)
-        frame['log_ssc_w'] = np.log10(frame['SSC-W'])
+        frame[f'adj_log_{height_channel}'] = np.log10(frame[height_channel] - ssc_adjustment)
+        frame[f'log_{width_channel}'] = np.log10(frame[width_channel])
     # then do all the same manipulations with the back_data
     data = back_data
     frame = data.flow_frame
-    frame['adj_log_ssc'] = np.log10(frame['SSC-H'] - ssc_adjustment)
+    frame[f'adj_log_{height_channel}'] = np.log10(frame[height_channel] - ssc_adjustment)
 
-    singlet_gmm_data2 = [data.flow_frame.loc[:, ['log_ssc_w', 'adj_log_ssc', 'is_cell']].copy() for data in coli_data]
+    singlet_gmm_data2 = [data.flow_frame.loc[:, [f'log_{width_channel}', f'adj_log_{height_channel}', 'is_cell']].copy() for data in coli_data]
     
     # Note: this for loop is done in the non-Pythonic way, using the itterator, i,
     # becasue that is what it takes to get 2nd line to work to pick out only events
     # for which is_cell=True
     for i, data in enumerate(singlet_gmm_data2):
-        singlet_gmm_data2[i] = singlet_gmm_data2[i].loc[np.isfinite(singlet_gmm_data2[i]['adj_log_ssc'])]
+        singlet_gmm_data2[i] = singlet_gmm_data2[i].loc[np.isfinite(singlet_gmm_data2[i][f'adj_log_{height_channel}'])]
         singlet_gmm_data2[i] = singlet_gmm_data2[i].loc[singlet_gmm_data2[i]['is_cell']]
-        singlet_gmm_data2[i] = singlet_gmm_data2[i].loc[singlet_gmm_data2[i]['log_ssc_w'] > 0]
+        singlet_gmm_data2[i] = singlet_gmm_data2[i].loc[singlet_gmm_data2[i][f'log_{width_channel}'] > 0]
 
-    singlet_gmm_data2 = [data.loc[:, ['log_ssc_w', 'adj_log_ssc']].copy() for data in singlet_gmm_data2]
+    singlet_gmm_data2 = [data.loc[:, [f'log_{width_channel}', f'adj_log_{height_channel}']].copy() for data in singlet_gmm_data2]
     singlet_gmm_data2 = [data[:max_events] for data in singlet_gmm_data2]
     #singlet_gmm_data4 = pd.concat(singlet_gmm_data2)
     singlet_gmm_data4 = pd.concat(singlet_gmm_data2, ignore_index=True)
@@ -1584,7 +1608,7 @@ def singlet_gating_width(data_directory,
                                                  weights_init=weights_init,
                                                  means_init=means_init,
                                                  precisions_init=precisions_init)
-                singlet_fit_mem = gmm_singlet_mem.fit(singlet_gmm_data4.loc[:, ['log_ssc_w', 'adj_log_ssc']])
+                singlet_fit_mem = gmm_singlet_mem.fit(singlet_gmm_data4.loc[:, [f'log_{width_channel}', f'adj_log_{height_channel}']])
                 
                 if i==0:
                     best_mem_gmm = singlet_fit_mem
@@ -1639,17 +1663,17 @@ def singlet_gating_width(data_directory,
 
     data = singlet_gmm_data4
 
-    x = data['log_ssc_w']  # [:num_points]
-    y = data['adj_log_ssc']  # [:num_points])
+    x = data[f'log_{width_channel}']  # [:num_points]
+    y = data[f'adj_log_{height_channel}']  # [:num_points])
 
-    labels = singlet_fit.predict(data.loc[:, ['log_ssc_w', 'adj_log_ssc']][:num_points]).copy()
-    probs = singlet_fit.predict_proba(data.loc[:, ['log_ssc_w', 'adj_log_ssc']][:num_points])
+    labels = singlet_fit.predict(data.loc[:, [f'log_{width_channel}', f'adj_log_{height_channel}']][:num_points]).copy()
+    probs = singlet_fit.predict_proba(data.loc[:, [f'log_{width_channel}', f'adj_log_{height_channel}']][:num_points])
     size = 40 * probs.max(1) ** 2   # square emphasizes differences
 
     #axs.set_xlim(-10, 200)
     axs.scatter(x[:num_points], y[:num_points], s=size, c=labels, cmap='viridis')
-    axs.set_xlabel('log10(SSC-W)')
-    axs.set_ylabel(f'log10(SSC-H - {ssc_adjustment})')
+    axs.set_xlabel(f'log10({width_channel})')
+    axs.set_ylabel(f'log10({height_channel} - {ssc_adjustment})')
     w_factor = 0.2 / singlet_fit.weights_.max()
     for pos, covar, w in zip(singlet_fit.means_, singlet_fit.covariances_, singlet_fit.weights_):
         draw_ellipse(pos, covar, alpha=w * w_factor, edgecolor='k', ax=axs)
@@ -1686,7 +1710,7 @@ def singlet_gating_width(data_directory,
     #x = data['log_ssc_w']  # [:num_points]
     #y = data['adj_log_ssc']  # [:num_points])
 
-    probs = singlet_fit.predict_proba(data.loc[:, ['log_ssc_w', 'adj_log_ssc']][:num_points])
+    probs = singlet_fit.predict_proba(data.loc[:, [f'log_{width_channel}', f'adj_log_{height_channel}']][:num_points])
     probs2 = probs.copy()
     probs2[:, not_single_or_multiple] = 0
     probs2 = probs2 / (probs2.sum(1)[:, np.newaxis])
@@ -1704,8 +1728,8 @@ def singlet_gating_width(data_directory,
     axs[1].scatter(x[:num_points], y[:num_points], s=size2, c=labels2, cmap='viridis')
     
     for ax in axs:
-        ax.set_xlabel('log10(SSC-W)')
-        ax.set_ylabel(f'log10(SSC-H - {ssc_adjustment})')
+        ax.set_xlabel(f'log10({width_channel})')
+        ax.set_ylabel(f'log10({height_channel} - {ssc_adjustment})')
 
     pdf.savefig()
     if not show_plots:
@@ -1715,7 +1739,7 @@ def singlet_gating_width(data_directory,
     for i, (data, file) in enumerate(zip(coli_data, coli_files)):
         frame = data.flow_frame
         meta = data.metadata
-        gmm_data = frame[['log_ssc_w', 'adj_log_ssc']].copy().fillna(0)
+        gmm_data = frame[[f'log_{width_channel}', f'adj_log_{height_channel}']].copy().fillna(0)
 
         meta._scatter_singlet_fit = singlet_fit
 
@@ -1727,8 +1751,8 @@ def singlet_gating_width(data_directory,
 
         is_singlet_1 = np.isin(labels2, singlets)
         is_singlet_2 = frame['is_cell']
-        is_singlet_3 = np.isfinite(frame['adj_log_ssc'])
-        is_singlet_4 = frame['SSC-W'] > 0
+        is_singlet_3 = np.isfinite(frame[f'adj_log_{height_channel}'])
+        is_singlet_4 = frame[width_channel] > 0
 
         frame['is_singlet'] = is_singlet_1 & is_singlet_2 & is_singlet_3 & is_singlet_4
 
@@ -1740,8 +1764,8 @@ def singlet_gating_width(data_directory,
     data = back_data
     frame = data.flow_frame
     meta = data.metadata
-    frame['log_ssc_w'] = np.log10(frame['SSC-W'])
-    gmm_data = frame[['log_ssc_w', 'adj_log_ssc']].copy().fillna(0)
+    frame[f'log_{width_channel}'] = np.log10(frame[width_channel])
+    gmm_data = frame[[f'log_{width_channel}', f'adj_log_{height_channel}']].copy().fillna(0)
 
     meta._scatter_singlet_fit = singlet_fit
 
@@ -1753,8 +1777,8 @@ def singlet_gating_width(data_directory,
 
     is_singlet_1 = np.isin(labels2, singlets)
     is_singlet_2 = frame['is_cell']
-    is_singlet_3 = np.isfinite(frame['adj_log_ssc'])
-    is_singlet_4 = frame['SSC-W'] > 0
+    is_singlet_3 = np.isfinite(frame[f'adj_log_{height_channel}'])
+    is_singlet_4 = frame[width_channel] > 0
 
     frame['is_singlet'] = is_singlet_1 & is_singlet_2 & is_singlet_3 & is_singlet_4
 
@@ -1778,15 +1802,15 @@ def singlet_gating_width(data_directory,
         axs[i, 0].get_shared_y_axes().join(axs[i, 0], axs[i, 1])
         data = coli.flow_frame
         data = data[data['is_cell']]
-        data = data[data['SSC-W'] > 0]
+        data = data[data[width_channel] > 0]
         data2 = data.loc[data['is_singlet']].copy()
 
-        x = data['log_ssc_w']  # [:num_points]
-        y = data['log_ssc']  # [:num_points])
-        x2 = data2['log_ssc_w']  # [:num_points]
-        y2 = data2['log_ssc']  # [:num_points])
+        x = data[f'log_{width_channel}']  # [:num_points]
+        y = data[f'log_{height_channel}']  # [:num_points])
+        x2 = data2[f'log_{width_channel}']  # [:num_points]
+        y2 = data2[f'log_{height_channel}']  # [:num_points])
 
-        probs = singlet_fit.predict_proba(data.loc[:, ['log_ssc_w', 'adj_log_ssc']].fillna(0)[:num_points])
+        probs = singlet_fit.predict_proba(data.loc[:, [f'log_{width_channel}', f'adj_log_{height_channel}']].fillna(0)[:num_points])
         probs2 = probs.copy()
         probs2[:, not_single_or_multiple] = 0
         probs2 = probs2 / (probs2.sum(1)[:, np.newaxis])
@@ -1808,8 +1832,8 @@ def singlet_gating_width(data_directory,
         #axs[i, 1].scatter(x[:num_points], y[:num_points], s=size2*2, c=labels2, cmap='viridis', rasterized=True)
         axs[i, 0].hist2d(x, y, bins=100, norm=colors.LogNorm(), rasterized=True)
     for ax in axs.flatten():
-        ax.set_xlabel('log10(SSC-W)')
-        ax.set_ylabel('log10(SSC-H)')
+        ax.set_xlabel(f'log10({width_channel})')
+        ax.set_ylabel(f'log10({height_channel})')
 
     pdf.savefig()
     if not show_plots:
@@ -2598,7 +2622,16 @@ def fit_bead_data(data_directory,
                   upper_threshold=None,
                   fit_VL1=False,
                   manuscript_style=False,
-                  sub_fig_lower=False):
+                  sub_fig_lower=False,
+                  FSC_channel='FSC-H',
+                  SSC_channel='SSC-H',
+                  SSCwidth_channel='SSC-W',
+                  covariance=1000,
+                  singlet_low=200,
+                  singlet_high=600,
+                  fluoro_channel_1='BL1-A',
+                  fluoro_channel_2='YL1-A',
+                  fluoro_channel_3='VL1-A'):
 
     """
     This method performs uses fluorescence data for calibration neads to 
@@ -2725,6 +2758,33 @@ def fit_bead_data(data_directory,
     sub_fig_lower : Boolean
         if True, figure sub-panels have lower-case letter designations.
         only used if manuscript_style == True.
+    
+    FSC_channel : str
+        used to identify the FSC height channel name 
+
+    SSC_channel : str
+        used to identify the SSC channel name
+
+    SSCwidth_channel : str
+        used to identify the SSC width channel name
+
+    covariance : float
+        the covariance used to set the singlet bead gate
+
+    singlet_low : float
+        lower bound on the SSC-W parameter of the singlet population
+    
+    singlet_high : float
+        upper bound on the SSC-W parameter of the singlet population
+    
+    fluoro_channel_1 : str
+        channel name for the first fluorescence parameter to calibrate. Corresponds to calibration_data_b
+    
+    fluoro_channel_2 : str
+        channel name for the second fluorescence parameter to calibrate. Corresponds to calibration_data_y
+
+    fluoro_channel_3 : str
+        channel name for the (optional) third fluorescence parameter to calibrate. Corresponds to calibration_data_v
 
     Returns
     -------
@@ -2766,19 +2826,19 @@ def fit_bead_data(data_directory,
     bead_data = pickle.load(open(bead_file, 'rb'))
     
     # First, use GMM model to find main bead population from scatter plot
-    bead_gmm_data = bead_data.flow_frame.loc[:, ['FSC-H', 'SSC-H']].copy()
-    bead_gmm_data = bead_gmm_data[bead_gmm_data['FSC-H'] < bead_gmm_data['FSC-H'].max()]
-    bead_gmm_data = bead_gmm_data[bead_gmm_data['SSC-H'] < bead_gmm_data['SSC-H'].max()]
-    bead_gmm_data = bead_gmm_data[bead_gmm_data['FSC-H'] > bead_gmm_data['FSC-H'].min()]
-    bead_gmm_data = bead_gmm_data[bead_gmm_data['SSC-H'] > bead_gmm_data['SSC-H'].min()]
+    bead_gmm_data = bead_data.flow_frame.loc[:, [FSC_channel, SSC_channel]].copy()
+    bead_gmm_data = bead_gmm_data[bead_gmm_data[FSC_channel] < bead_gmm_data[FSC_channel].max()]
+    bead_gmm_data = bead_gmm_data[bead_gmm_data[SSC_channel] < bead_gmm_data[SSC_channel].max()]
+    bead_gmm_data = bead_gmm_data[bead_gmm_data[FSC_channel] > bead_gmm_data[FSC_channel].min()]
+    bead_gmm_data = bead_gmm_data[bead_gmm_data[SSC_channel] > bead_gmm_data[SSC_channel].min()]
     # throw out bead data that is below a cut-off value to avoid including bacteria or debris
     #     in the fit
-    bead_gmm_data = bead_gmm_data[bead_gmm_data['SSC-H'] > ssc_min]
+    bead_gmm_data = bead_gmm_data[bead_gmm_data[SSC_channel] > ssc_min]
     if ssc_max is not None:
-        bead_gmm_data = bead_gmm_data[bead_gmm_data['SSC-H'] < ssc_max]
-    bead_gmm_data = bead_gmm_data[bead_gmm_data['FSC-H'] > fsc_min]
+        bead_gmm_data = bead_gmm_data[bead_gmm_data[SSC_channel] < ssc_max]
+    bead_gmm_data = bead_gmm_data[bead_gmm_data[FSC_channel] > fsc_min]
     if fsc_max is not None:
-        bead_gmm_data = bead_gmm_data[bead_gmm_data['FSC-H'] < fsc_max]
+        bead_gmm_data = bead_gmm_data[bead_gmm_data[FSC_channel] < fsc_max]
     
     bead_gmm = nist_gmm.GaussianMixture(n_components=num_bead_clusters,
                                    covariance_type='full',
@@ -2791,7 +2851,7 @@ def fit_bead_data(data_directory,
     
     if update_progress: print(f"Main bead cluster mean: {bead_fit.means_[main_cluster]}")
     
-    bead_data.flow_frame['is_main_cluster'] = bead_fit.predict(bead_data.flow_frame.loc[:, ['FSC-H', 'SSC-H']]) == main_cluster
+    bead_data.flow_frame['is_main_cluster'] = bead_fit.predict(bead_data.flow_frame.loc[:, [FSC_channel, SSC_channel]]) == main_cluster
     
     main_beads_frame = bead_data.flow_frame[bead_data.flow_frame['is_main_cluster']]
     
@@ -2804,12 +2864,12 @@ def fit_bead_data(data_directory,
                      y=0.92, verticalalignment='bottom', size=16)
     
     x_max = 500000
-    y_max = 1000000
+    y_max = 2000000
     x_bins = np.linspace(0, x_max, 200)
     y_bins = np.linspace(0, y_max, 200)
     
-    x = bead_gmm_data['FSC-H']
-    y = bead_gmm_data['SSC-H']
+    x = bead_gmm_data[FSC_channel]
+    y = bead_gmm_data[SSC_channel]
 
     labels = bead_fit.predict(bead_gmm_data)
     labels[np.isin(labels, [main_cluster])] = -2
@@ -2821,8 +2881,8 @@ def fit_bead_data(data_directory,
     axs[1].set_xlim(0, x_max)
     axs[1].set_ylim(0, y_max)
     for ax in axs:
-        ax.set_xlabel('FSC-H')
-        ax.set_ylabel('SSC-H')
+        ax.set_xlabel(FSC_channel)
+        ax.set_ylabel(SSC_channel)
     w_factor = 0.2 / bead_fit.weights_.max()
     for pos, covar, w in zip(bead_fit.means_, bead_fit.covariances_, bead_fit.weights_):
         draw_ellipse(pos, covar, alpha=w * w_factor, edgecolor='k', ax=axs[1])
@@ -2835,10 +2895,10 @@ def fit_bead_data(data_directory,
         plt.close(fig)
     
     # Next, use a second GMM fit to find singlet beads cluster
-    singlet_gmm_data = main_beads_frame.loc[:, ['SSC-W', 'SSC-H']].copy()
+    singlet_gmm_data = main_beads_frame.loc[:, [SSCwidth_channel, SSC_channel]].copy()
     
-    singlet_gmm_data = singlet_gmm_data[singlet_gmm_data['SSC-W'] < singlet_gmm_data['SSC-W'].max()]
-    singlet_gmm_data = singlet_gmm_data[singlet_gmm_data['SSC-W'] > singlet_gmm_data['SSC-W'].min()]
+    singlet_gmm_data = singlet_gmm_data[singlet_gmm_data[SSCwidth_channel] < singlet_gmm_data[SSCwidth_channel].max()]
+    singlet_gmm_data = singlet_gmm_data[singlet_gmm_data[SSCwidth_channel] > singlet_gmm_data[SSCwidth_channel].min()]
     
     singlet_gmm = nist_gmm.GaussianMixture(n_components=num_singlet_clusters, covariance_type='full', n_init=singlet_init)
     
@@ -2849,12 +2909,12 @@ def fit_bead_data(data_directory,
     singlet_fit_frame['covariance'] = [ c[0,0] for c in singlet_fit.covariances_ ]
     singlet_fit_frame['weight'] = singlet_fit.weights_
     
-    singlet_select_frame = singlet_fit_frame[singlet_fit_frame['covariance']<1000]
-    singlet_select_frame = singlet_select_frame[singlet_select_frame['mean']>200]
-    singlet_select_frame = singlet_select_frame[singlet_select_frame['mean']<600]
+    singlet_select_frame = singlet_fit_frame[singlet_fit_frame['covariance']<covariance]
+    singlet_select_frame = singlet_select_frame[singlet_select_frame['mean']>singlet_low]
+    singlet_select_frame = singlet_select_frame[singlet_select_frame['mean']<singlet_high]
     singlet_cluster = singlet_select_frame.index[0]
     
-    bead_data.flow_frame['is_singlet_cluster'] = (bead_data.flow_frame['is_main_cluster']) & (singlet_fit.predict(bead_data.flow_frame.loc[:, ['SSC-W', 'SSC-H']]) == singlet_cluster)
+    bead_data.flow_frame['is_singlet_cluster'] = (bead_data.flow_frame['is_main_cluster']) & (singlet_fit.predict(bead_data.flow_frame.loc[:, [SSCwidth_channel, SSC_channel]]) == singlet_cluster)
     
     singlet_beads_frame = bead_data.flow_frame[bead_data.flow_frame['is_singlet_cluster']]
     
@@ -2865,8 +2925,8 @@ def fit_bead_data(data_directory,
         fig.suptitle('Second GMM fit results to find singlet bead events',
                      y=0.92, verticalalignment='bottom', size=16)
         
-    x = singlet_gmm_data['SSC-W']
-    y = singlet_gmm_data['SSC-H']
+    x = singlet_gmm_data[SSCwidth_channel]
+    y = singlet_gmm_data[SSC_channel]
     x_bins = np.linspace(0, x.max(), 200)
     y_bins = np.linspace(y.min(), y.max(), 200)
 
@@ -2878,8 +2938,8 @@ def fit_bead_data(data_directory,
     axs[0].hist2d(x, y, bins=[x_bins, y_bins], norm=colors.LogNorm(), rasterized=True);
     axs[1].scatter(x, y, c=labels, cmap='viridis', s=size*0.5, rasterized=True);
     for ax in axs:
-        ax.set_xlabel('SSC-W')
-        ax.set_ylabel('SSC-H')
+        ax.set_xlabel(SSCwidth_channel)
+        ax.set_ylabel(SSC_channel)
         
     w_factor = 0.2 / singlet_fit.weights_.max()
     for pos, covar, w in zip(singlet_fit.means_, singlet_fit.covariances_, singlet_fit.weights_):
@@ -2894,27 +2954,27 @@ def fit_bead_data(data_directory,
     
     # Now run GMM model to identify bead clusters in fluorescent channels
     if fit_VL1:
-        gmm_data = singlet_beads_frame.loc[:, ['BL1-A', 'YL1-A', 'VL1-A']].copy()
-        gmm_data = gmm_data[gmm_data['VL1-A'] < gmm_data['VL1-A'].max()]
+        gmm_data = singlet_beads_frame.loc[:, [fluoro_channel_1, fluoro_channel_2, fluoro_channel_3]].copy()
+        gmm_data = gmm_data[gmm_data[fluoro_channel_3] < gmm_data[fluoro_channel_3].max()]
         if lower_threshold is not None:
-            gmm_data = gmm_data[gmm_data['VL1-A'] > lower_threshold[2]]
-            gmm_data = gmm_data[gmm_data['VL1-A'] < upper_threshold[2]]
+            gmm_data = gmm_data[gmm_data[fluoro_channel_3] > lower_threshold[2]]
+            gmm_data = gmm_data[gmm_data[fluoro_channel_3] < upper_threshold[2]]
     else:
-        gmm_data = singlet_beads_frame.loc[:, ['BL1-A', 'YL1-A']].copy()
+        gmm_data = singlet_beads_frame.loc[:, [fluoro_channel_1, fluoro_channel_2]].copy()
     
-    channel_max_b = gmm_data['BL1-A'].max()
-    channel_max_y = gmm_data['YL1-A'].max()
-    gmm_data = gmm_data[gmm_data['BL1-A'] < max_cytometer_signal]
-    gmm_data = gmm_data[gmm_data['YL1-A'] < max_cytometer_signal]
+    channel_max_b = gmm_data[fluoro_channel_1].max()
+    channel_max_y = gmm_data[fluoro_channel_2].max()
+    gmm_data = gmm_data[gmm_data[fluoro_channel_1] < max_cytometer_signal]
+    gmm_data = gmm_data[gmm_data[fluoro_channel_2] < max_cytometer_signal]
     if channel_max_b < max_cytometer_signal:
-        gmm_data = gmm_data[gmm_data['BL1-A'] < channel_max_b]
+        gmm_data = gmm_data[gmm_data[fluoro_channel_1] < channel_max_b]
     if channel_max_y < max_cytometer_signal:
-        gmm_data = gmm_data[gmm_data['YL1-A'] < channel_max_y]
+        gmm_data = gmm_data[gmm_data[fluoro_channel_2] < channel_max_y]
     if lower_threshold is not None:
-        gmm_data = gmm_data[gmm_data['BL1-A'] > lower_threshold[0]]
-        gmm_data = gmm_data[gmm_data['BL1-A'] < upper_threshold[0]]
-        gmm_data = gmm_data[gmm_data['YL1-A'] > lower_threshold[1]]
-        gmm_data = gmm_data[gmm_data['YL1-A'] < upper_threshold[1]]
+        gmm_data = gmm_data[gmm_data[fluoro_channel_1] > lower_threshold[0]]
+        gmm_data = gmm_data[gmm_data[fluoro_channel_1] < upper_threshold[0]]
+        gmm_data = gmm_data[gmm_data[fluoro_channel_2] > lower_threshold[1]]
+        gmm_data = gmm_data[gmm_data[fluoro_channel_2] < upper_threshold[1]]
     
     # Default: random initialization of GMM when pop_init_means=None
     if pop_init_means is None:
@@ -2929,11 +2989,11 @@ def fit_bead_data(data_directory,
         outlier_cut_frame["score"] = gmm.score_samples(outlier_cut_frame)
         cutoff = outlier_cut_frame["score"].quantile(outlier_quantile)
         if fit_VL1:
-            gmm_data_trimmed = outlier_cut_frame[outlier_cut_frame["score"]>cutoff].loc[:, ['BL1-A', 'YL1-A', 'VL1-A']].copy()
-            gmm_data_outliers = outlier_cut_frame[outlier_cut_frame["score"]<=cutoff].loc[:, ['BL1-A', 'YL1-A', 'VL1-A']].copy()
+            gmm_data_trimmed = outlier_cut_frame[outlier_cut_frame["score"]>cutoff].loc[:, [fluoro_channel_1, fluoro_channel_2,fluoro_channel_3]].copy()
+            gmm_data_outliers = outlier_cut_frame[outlier_cut_frame["score"]<=cutoff].loc[:, [fluoro_channel_1, fluoro_channel_2,fluoro_channel_3]].copy()
         else:
-            gmm_data_trimmed = outlier_cut_frame[outlier_cut_frame["score"]>cutoff].loc[:, ['BL1-A', 'YL1-A']].copy()
-            gmm_data_outliers = outlier_cut_frame[outlier_cut_frame["score"]<=cutoff].loc[:, ['BL1-A', 'YL1-A']].copy()
+            gmm_data_trimmed = outlier_cut_frame[outlier_cut_frame["score"]>cutoff].loc[:, [fluoro_channel_1, fluoro_channel_2]].copy()
+            gmm_data_outliers = outlier_cut_frame[outlier_cut_frame["score"]<=cutoff].loc[:, [fluoro_channel_1, fluoro_channel_2]].copy()
         
         # Re-run GMM fit with outliers excluded
         gmm = nist_gmm.GaussianMixture(n_components=num_bead_populations,
@@ -2968,11 +3028,11 @@ def fit_bead_data(data_directory,
         outlier_cut_frame["score"] = gmm_fixed.score_samples(outlier_cut_frame)
         cutoff = outlier_cut_frame["score"].quantile(outlier_quantile)
         if fit_VL1:
-            gmm_data_trimmed = outlier_cut_frame[outlier_cut_frame["score"]>cutoff].loc[:, ['BL1-A', 'YL1-A', 'VL1-A']].copy()
-            gmm_data_outliers = outlier_cut_frame[outlier_cut_frame["score"]<=cutoff].loc[:, ['BL1-A', 'YL1-A', 'VL1-A']].copy()
+            gmm_data_trimmed = outlier_cut_frame[outlier_cut_frame["score"]>cutoff].loc[:, [fluoro_channel_1, fluoro_channel_2,fluoro_channel_3]].copy()
+            gmm_data_outliers = outlier_cut_frame[outlier_cut_frame["score"]<=cutoff].loc[:, [fluoro_channel_1, fluoro_channel_2,fluoro_channel_3]].copy()
         else:
-            gmm_data_trimmed = outlier_cut_frame[outlier_cut_frame["score"]>cutoff].loc[:, ['BL1-A', 'YL1-A']].copy()
-            gmm_data_outliers = outlier_cut_frame[outlier_cut_frame["score"]<=cutoff].loc[:, ['BL1-A', 'YL1-A']].copy()
+            gmm_data_trimmed = outlier_cut_frame[outlier_cut_frame["score"]>cutoff].loc[:, [fluoro_channel_1, fluoro_channel_2]].copy()
+            gmm_data_outliers = outlier_cut_frame[outlier_cut_frame["score"]<=cutoff].loc[:, [fluoro_channel_1, fluoro_channel_2]].copy()
         
         # Plot comparison between initialization and actual fit results
         if fit_VL1:
@@ -2991,10 +3051,10 @@ def fit_bead_data(data_directory,
         bead_intensities_b = np.sort(gmm_fixed.means_[:,0])
         bead_intensities_y = np.sort(gmm_fixed.means_[:,1])
         
-        x = gmm_data['BL1-A']
-        y = gmm_data['YL1-A']
-        x_out = gmm_data_outliers['BL1-A']
-        y_out = gmm_data_outliers['YL1-A']
+        x = gmm_data[fluoro_channel_1]
+        y = gmm_data[fluoro_channel_2]
+        x_out = gmm_data_outliers[fluoro_channel_1]
+        y_out = gmm_data_outliers[fluoro_channel_2]
         
         x_sd_max = np.sqrt(gmm_fixed.covariances_[:,0].max())
         y_sd_max = np.sqrt(gmm_fixed.covariances_[:,1].max())
@@ -3020,8 +3080,8 @@ def fit_bead_data(data_directory,
                     sub = sub.to_lower()
                 ax.text(x=t_x, y=t_y, s=sub, horizontalalignment='left', verticalalignment='bottom',
                         transform=ax.transAxes, fontsize=24, fontweight="bold")
-            ax.set_xlabel('BL1-A')
-            ax.set_ylabel('YL1-A')
+            ax.set_xlabel(fluoro_channel_1)
+            ax.set_ylabel(fluoro_channel_2)
             ax.scatter(x, y, c=labels, cmap='viridis', s=size, rasterized=True);
             ax.plot(x_out, y_out, 'x', c='red', fillstyle='none', rasterized=True);
             for m, cv in zip(fixed_means, fixed_covars):
@@ -3050,14 +3110,14 @@ def fit_bead_data(data_directory,
             
         if fit_VL1:
             bead_intensities_v = np.sort(gmm_fixed.means_[:,2])
-            x_v = gmm_data['VL1-A']
-            x_out_v = gmm_data_outliers['VL1-A']
+            x_v = gmm_data[fluoro_channel_3]
+            x_out_v = gmm_data_outliers[fluoro_channel_3]
             x_sd_max_v = np.sqrt(gmm_fixed.covariances_[:,2].max())
             x_sd_min_v = np.sqrt(gmm_fixed.covariances_[:,2].min())
             
             for ax in init_axs[3:]:
-                ax.set_xlabel('VL1-A')
-                ax.set_ylabel('YL1-A')
+                ax.set_xlabel(fluoro_channel_3)
+                ax.set_ylabel(fluoro_channel_2)
                 ax.scatter(x_v, y, c=labels, cmap='viridis', s=size*0.5, rasterized=True);
                 ax.scatter(x_out_v, y_out, c='red', rasterized=True);
                 for m, cv in zip(fixed_means, fixed_covars):
@@ -3097,11 +3157,11 @@ def fit_bead_data(data_directory,
         outlier_cut_frame["score"] = gmm.score_samples(outlier_cut_frame)
         cutoff = outlier_cut_frame["score"].quantile(outlier_quantile)
         if fit_VL1:
-            gmm_data_trimmed = outlier_cut_frame[outlier_cut_frame["score"]>cutoff].loc[:, ['BL1-A', 'YL1-A', 'VL1-A']].copy()
-            gmm_data_outliers = outlier_cut_frame[outlier_cut_frame["score"]<=cutoff].loc[:, ['BL1-A', 'YL1-A', 'VL1-A']].copy()
+            gmm_data_trimmed = outlier_cut_frame[outlier_cut_frame["score"]>cutoff].loc[:, [fluoro_channel_1, fluoro_channel_2,fluoro_channel_3]].copy()
+            gmm_data_outliers = outlier_cut_frame[outlier_cut_frame["score"]<=cutoff].loc[:, [fluoro_channel_1, fluoro_channel_2,fluoro_channel_3]].copy()
         else:
-            gmm_data_trimmed = outlier_cut_frame[outlier_cut_frame["score"]>cutoff].loc[:, ['BL1-A', 'YL1-A']].copy()
-            gmm_data_outliers = outlier_cut_frame[outlier_cut_frame["score"]<=cutoff].loc[:, ['BL1-A', 'YL1-A']].copy()
+            gmm_data_trimmed = outlier_cut_frame[outlier_cut_frame["score"]>cutoff].loc[:, [fluoro_channel_1, fluoro_channel_2]].copy()
+            gmm_data_outliers = outlier_cut_frame[outlier_cut_frame["score"]<=cutoff].loc[:, [fluoro_channel_1, fluoro_channel_2]].copy()
         
         # Re-run GMM fit with new outliers excluded
         gmm = nist_gmm.GaussianMixture(n_components=num_bead_populations,
@@ -3135,7 +3195,7 @@ def fit_bead_data(data_directory,
         if ((intensity + 3.5*sigma) > max_cytometer_signal):
             labels = bead_population_fit.predict(gmm_data)
             trunc_gmm_data = gmm_data[labels==pos]
-            intensity, sigma = estimate_upper_truncated_normal(data=trunc_gmm_data['BL1-A'], truncation=max_cytometer_signal)
+            intensity, sigma = estimate_upper_truncated_normal(data=trunc_gmm_data[fluoro_channel_1], truncation=max_cytometer_signal)
             bead_intensities_b[i] = intensity
             bead_sigmas_b[i] = sigma
             var_b[i] = sigma**2
@@ -3144,7 +3204,7 @@ def fit_bead_data(data_directory,
         if ((intensity + 3.5*sigma) > max_cytometer_signal):
             labels = bead_population_fit.predict(gmm_data)
             trunc_gmm_data = gmm_data[labels==pos]
-            intensity, sigma = estimate_upper_truncated_normal(data=trunc_gmm_data['YL1-A'], truncation=max_cytometer_signal)
+            intensity, sigma = estimate_upper_truncated_normal(data=trunc_gmm_data[fluoro_channel_2], truncation=max_cytometer_signal)
             bead_intensities_y[i] = intensity
             bead_sigmas_y[i] = sigma
             var_y[i] = sigma**2
@@ -3154,7 +3214,7 @@ def fit_bead_data(data_directory,
             if ((intensity + 3.5*sigma) > max_cytometer_signal):
                 labels = bead_population_fit.predict(gmm_data)
                 trunc_gmm_data_v = gmm_data[labels==pos]
-                intensity, sigma = estimate_upper_truncated_normal(data=trunc_gmm_data_v['VL1-A'], truncation=max_cytometer_signal)
+                intensity, sigma = estimate_upper_truncated_normal(data=trunc_gmm_data_v[fluoro_channel_3], truncation=max_cytometer_signal)
                 bead_intensities_v[i] = intensity
                 bead_sigmas_v[i] = sigma
                 var_v[i] = sigma**2
@@ -3171,10 +3231,10 @@ def fit_bead_data(data_directory,
     axs_2d = axs[0]
     axs_1d = axs[1:]
         
-    x = gmm_data_trimmed['BL1-A']
-    y = gmm_data_trimmed['YL1-A']
-    x_out = gmm_data_outliers['BL1-A']
-    y_out = gmm_data_outliers['YL1-A']
+    x = gmm_data_trimmed[fluoro_channel_1]
+    y = gmm_data_trimmed[fluoro_channel_2]
+    x_out = gmm_data_outliers[fluoro_channel_1]
+    y_out = gmm_data_outliers[fluoro_channel_2]
         
     x_sd_max = np.sqrt(bead_population_fit.covariances_[:,0].max())
     y_sd_max = np.sqrt(bead_population_fit.covariances_[:,1].max())
@@ -3220,17 +3280,17 @@ def fit_bead_data(data_directory,
     for ax, ax_1d in zip(axs_2d, np.transpose(axs_1d)):
         ax.scatter(x, y, c=labels, cmap='viridis', s=size, rasterized=True);
         ax.plot(x_out, y_out, 'x', c='red', fillstyle='none', rasterized=True);
-        ax.set_xlabel('BL1-A')
-        ax.set_ylabel('YL1-A')
+        ax.set_xlabel(fluoro_channel_1)
+        ax.set_ylabel(fluoro_channel_2)
         xlim = ax_1d[0].get_xlim()
         bins = np.linspace(xlim[0], xlim[1], 70)
         ax_1d[0].hist(x, bins=bins, color='royalblue', zorder=-1)
-        ax_1d[0].set_xlabel('BL1-A')
+        ax_1d[0].set_xlabel(fluoro_channel_1)
         ax_1d[0].set_ylabel('Count')
         xlim = ax_1d[1].get_xlim()
         bins = np.linspace(xlim[0], xlim[1], 70)
         ax_1d[1].hist(y, bins=bins, color='goldenrod', zorder=-1)
-        ax_1d[1].set_xlabel('YL1-A')
+        ax_1d[1].set_xlabel(fluoro_channel_2)
         ax_1d[1].set_ylabel('Count')
         
         
@@ -3268,8 +3328,8 @@ def fit_bead_data(data_directory,
         plt.close(fig)
     
     if fit_VL1:
-        x_v = gmm_data_trimmed['VL1-A']
-        x_out_v = gmm_data_outliers['VL1-A']
+        x_v = gmm_data_trimmed[fluoro_channel_3]
+        x_out_v = gmm_data_outliers[fluoro_channel_3]
         x_sd_max_v = np.sqrt(bead_population_fit.covariances_[:,2].max())
         
         #sns.set()
@@ -3310,14 +3370,14 @@ def fit_bead_data(data_directory,
             xlim = ax.get_xlim()
             bins = np.linspace(xlim[0], xlim[1], 70)
             ax.hist(x_v, bins=bins, color='blueviolet')
-            ax.set_xlabel('VL1-A')
+            ax.set_xlabel(fluoro_channel_3)
             ax.set_ylabel('Count')
             
         for ax in axs_2d:
             ax.scatter(x_v, y, c=labels, cmap='viridis', s=size*0.5, rasterized=True);
             ax.scatter(x_out_v, y_out, c='red', rasterized=True);
-            ax.set_xlabel('VL1-A')
-            ax.set_ylabel('YL1-A')
+            ax.set_xlabel(fluoro_channel_3)
+            ax.set_ylabel(fluoro_channel_2)
             
         for pos, covar, w in zip(bead_population_fit.means_, bead_population_fit.covariances_, bead_population_fit.weights_):
             pos = pos[-1:-3:-1]
@@ -3347,7 +3407,7 @@ def fit_bead_data(data_directory,
     
     if (num_bead_populations<num_1D_clusters and auto_1D_fit):
         if update_progress: print('1D fit:')
-        gmm_data_1D = singlet_beads_frame['BL1-A'].copy()        
+        gmm_data_1D = singlet_beads_frame[fluoro_channel_1].copy()        
         gmm_data_1D = gmm_data_1D[gmm_data_1D < channel_max_b]
         gmm_data_1D = np.array(gmm_data_1D)
         
@@ -3476,14 +3536,14 @@ def fit_bead_data(data_directory,
         log_y_v = np.log10(calibration_data_v[1:len(bead_intensities_v)])
     
     for j in range(3):
-        axs[0,j].text(0.5, 0.9, 'BL1-A', horizontalalignment='center',
+        axs[0,j].text(0.5, 0.9, fluoro_channel_1, horizontalalignment='center',
                       verticalalignment='center',
                       transform=axs[0,j].transAxes, size=16)
-        axs[1,j].text(0.5, 0.9, 'YL1-A', horizontalalignment='center',
+        axs[1,j].text(0.5, 0.9, fluoro_channel_2, horizontalalignment='center',
                       verticalalignment='center',
                       transform=axs[1,j].transAxes, size=16)
         if fit_VL1:
-            axs[2,j].text(0.5, 0.9, 'VL1-A', horizontalalignment='center', verticalalignment='center', transform=axs[2,j].transAxes)
+            axs[2,j].text(0.5, 0.9, fluoro_channel_3, horizontalalignment='center', verticalalignment='center', transform=axs[2,j].transAxes)
         
     axs[0,0].scatter(x_b, y_b, s=90);
     axs[0,0].plot(x_plot_data_b, bead_func1(x_plot_data_b, *popt_b), 'g-')
@@ -3512,20 +3572,20 @@ def fit_bead_data(data_directory,
     pdf.close()
     
     try:
-        bead_data.metadata._bead_calibration_params['BL1-A'] = popt_b
+        bead_data.metadata._bead_calibration_params[fluoro_channel_1] = popt_b
     except AttributeError:
-        bead_data.metadata._bead_calibration_params = {'BL1-A':popt_b}
+        bead_data.metadata._bead_calibration_params = {fluoro_channel_1:popt_b}
     
     try:
-        bead_data.metadata._bead_calibration_params['YL1-A'] = popt_y
+        bead_data.metadata._bead_calibration_params[fluoro_channel_2] = popt_y
     except AttributeError:
-        bead_data.metadata._bead_calibration_params = {'YL1-A':popt_y}
+        bead_data.metadata._bead_calibration_params = {fluoro_channel_2:popt_y}
     
     if fit_VL1:
         try:
-            bead_data.metadata._bead_calibration_params['VL1-A'] = popt_v
+            bead_data.metadata._bead_calibration_params[fluoro_channel_3] = popt_v
         except AttributeError:
-            bead_data.metadata._bead_calibration_params = {'VL1-A':popt_v}
+            bead_data.metadata._bead_calibration_params = {fluoro_channel_3:popt_v}
     
     with open(bead_file, 'wb') as f:
         pickle.dump(bead_data, f)
