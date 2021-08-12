@@ -52,11 +52,35 @@ def get_python_directory():
     return os.path.dirname(os.path.realpath(__file__))
 
 return_directory = os.getcwd()
-os.chdir(os.path.join(get_python_directory(), 'Config Files'))
-bead_calibration_frame = pd.read_csv('bead_calibration_data.csv')
 
-with open('top_directory.txt', 'r') as file:
-    top_directory = file.read().replace('\n', '')
+# Try local config directory first, use default config files if local
+#     version does not exist
+local_dir_str = 'Local Config Files'
+default_dir_str = 'Config Files'
+local_config_exists = os.path.isdir(os.path.join(get_python_directory(), local_dir_str))
+
+if local_config_exists:
+    os.chdir(os.path.join(get_python_directory(), local_dir_str))
+    try:
+        bead_calibration_frame = pd.read_csv('bead_calibration_data.csv')
+    except:
+        os.chdir(os.path.join(get_python_directory(), default_dir_str))
+        bead_calibration_frame = pd.read_csv('bead_calibration_data.csv')
+        os.chdir(os.path.join(get_python_directory(), local_dir_str))
+    try:
+        with open('top_directory.txt', 'r') as file:
+            top_directory = file.read().replace('\n', '')
+    except:
+        os.chdir(os.path.join(get_python_directory(), default_dir_str))
+        with open('top_directory.txt', 'r') as file:
+            top_directory = file.read().replace('\n', '')
+        os.chdir(os.path.join(get_python_directory(), local_dir_str))
+        
+else:
+    os.chdir(os.path.join(get_python_directory(), default_dir_str))
+    bead_calibration_frame = pd.read_csv('bead_calibration_data.csv')
+    with open('top_directory.txt', 'r') as file:
+        top_directory = file.read().replace('\n', '')
     
 os.chdir(return_directory)
 ####

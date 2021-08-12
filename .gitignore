@@ -9,3 +9,4 @@ flowgatenist.egg-info/**
 *.rds
 *.Rhistory
 example data/Jupyter notebooks/.ipynb_checkpoints/**
+flowgatenist/Local Config Files/** 
