@@ -83,8 +83,6 @@ else:
         top_directory = file.read().replace('\n', '')
     
 os.chdir(return_directory)
-####
-######################################
 
 def central_2d_guassian(df_list,
                         alpha=0.3, 
@@ -1982,6 +1980,12 @@ def singlet_gating(data_directory,
     show_plots : Boolean
         If True, the method dynamically shows plots.
         If False, it just saves the plots to a pdf file without showing them.
+        
+    y_channel_h : str, default='SSC-H'
+        Name of side-scatter height channel
+        
+    y_channel_a : str, default='SSC-A'
+        Name of side-scatter area channel
 
     Returns
     -------
