@@ -39,7 +39,9 @@ C:\Users\username\Documents\Python Scripts\flowgatenist>pip install -e .
 Note that the "." at the end is important, as it indicates that the package should be installed from the current directory.
 
 #### Edit the configuration files
-Edit the configuration files located in the directory "\flowgatenist\flowgatenist\Config Files"
+The directory "\flowgatenist\flowgatenist\Config Files" is tracked by the repository. So, to use custom configuration files, make a local copy of the directory named: "\flowgatenist\flowgatenist\Local Config Files"
+
+Then edit the files in the Local Config Directory:
 
 The "top_directory.txt" file should contain the name of the top-level directory which will contain the data and the analysis memory for FlowGateNIST.<br>
 We recommend using FlowGateNIST with a directory structure similarly to this:<br>
