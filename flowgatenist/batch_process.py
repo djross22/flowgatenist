@@ -150,12 +150,12 @@ def central_2d_guassian(df_list,
         if df is not None:
             # Fit scatter plot (singlet events only) to a two component Gaussian Mixture model
             df_mm = df.copy()
-            df_mm = df_mm[df_mm['FSC-A']>0]
-            df_mm = df_mm[df_mm['SSC-A']>0]
+            df_mm = df_mm[df_mm[x_channel]>0]
+            df_mm = df_mm[df_mm[y_channel]>0]
             df_mm = df_mm[df_mm.is_singlet]
 
-            x = df_mm['FSC-A']
-            y = df_mm['SSC-A']
+            x = df_mm[x_channel]
+            y = df_mm[y_channel]
             X = np.array([x, y]).transpose()
             X = np.log10(X)
             gm = gm_model.fit(X)
@@ -180,8 +180,8 @@ def central_2d_guassian(df_list,
             with warnings.catch_warnings():
                 warnings.filterwarnings("ignore", message="divide by zero encountered")
                 warnings.filterwarnings("ignore", message="invalid value encountered")
-                x = np.log10(df['FSC-A'])
-                y = np.log10(df['SSC-A'])
+                x = np.log10(df[x_channel])
+                y = np.log10(df[y_channel])
             interval_array = gauss_interval(x, y, mu, cov)
             df['is_central'] = interval_array <= stats.chi2.ppf(alpha, 2)
     
@@ -1171,16 +1171,16 @@ def apply_background_subtract_gate(data_directory,
 
     back_data.flow_frame = back_data.flow_frame.loc[back_data.flow_frame[x_channel] > 0]
     back_data.flow_frame = back_data.flow_frame.loc[back_data.flow_frame[y_channel] > 0]
-    back_data.flow_frame['log_fsc'] = np.log10(back_data.flow_frame[x_channel])
-    back_data.flow_frame['log_ssc'] = np.log10(back_data.flow_frame[y_channel])
+    back_data.flow_frame[f'log_{x_channel}'] = np.log10(back_data.flow_frame[x_channel])
+    back_data.flow_frame[f'log_{y_channel}'] = np.log10(back_data.flow_frame[y_channel])
 
     # Plot the scattering data for the background sample and save to pdf file
     if update_progress:
         print('Plotting background 2D histogram, ' + str(pd.Timestamp.now().round('s')))
     x_bins = np.linspace(2, 5.5, 200)
     y_bins = np.linspace(2.4, 5.5, 200)
-    x = back_data.flow_frame['log_fsc']
-    y = back_data.flow_frame['log_ssc']
+    x = back_data.flow_frame[f'log_{x_channel}']
+    y = back_data.flow_frame[f'log_{y_channel}']
     plt.style.use('classic')
     plt.rcParams["figure.figsize"] = [8, 4]
     fig, axs = plt.subplots(1, 2)
@@ -1197,7 +1197,7 @@ def apply_background_subtract_gate(data_directory,
 
     # Plot a scatter plot of the background data, color-coded to the
     # different GMM components, and with Elipses to show the Gaussians
-    back_plot_data = back_data.flow_frame.loc[:, ['log_fsc', 'log_ssc']].copy()
+    back_plot_data = back_data.flow_frame.loc[:, [f'log_{x_channel}', f'log_{y_channel}']].copy()
     if update_progress:
         print('Plotting gmm fit to background data, ' + str(pd.Timestamp.now().round('s')))
     sns.set()
@@ -1207,8 +1207,8 @@ def apply_background_subtract_gate(data_directory,
     plt.rcParams["figure.figsize"] = [12, 6]
     fig, axs = plt.subplots(1, 2)
 
-    axs[0].scatter(back_plot_data['log_fsc'], back_plot_data['log_ssc'], c=labels, cmap='viridis', s=size*0.5, rasterized=True)
-    axs[1].scatter(back_plot_data['log_fsc'], back_plot_data['log_ssc'], c=labels, cmap='viridis', s=size*0.5, rasterized=True)
+    axs[0].scatter(back_plot_data[f'log_{x_channel}'], back_plot_data[f'log_{y_channel}'], c=labels, cmap='viridis', s=size*0.5, rasterized=True)
+    axs[1].scatter(back_plot_data[f'log_{x_channel}'], back_plot_data[f'log_{y_channel}'], c=labels, cmap='viridis', s=size*0.5, rasterized=True)
     w_factor = 0.2 / gate_back_fit.weights_.max()
     for pos, covar, w in zip(gate_back_fit.means_, gate_back_fit.covariances_, gate_back_fit.weights_):
         draw_ellipse(pos, covar, alpha=w * w_factor, edgecolor='k', ax=axs[1])
@@ -1227,8 +1227,8 @@ def apply_background_subtract_gate(data_directory,
     for i, (data, file) in enumerate(zip(coli_data, coli_files)):
         data.flow_frame = data.flow_frame.loc[data.flow_frame[x_channel] > 0]
         data.flow_frame = data.flow_frame.loc[data.flow_frame[y_channel] > 0]
-        data.flow_frame['log_fsc'] = np.log10(data.flow_frame[x_channel])
-        data.flow_frame['log_ssc'] = np.log10(data.flow_frame[y_channel])
+        data.flow_frame[f'log_{x_channel}'] = np.log10(data.flow_frame[x_channel])
+        data.flow_frame[f'log_{y_channel}'] = np.log10(data.flow_frame[y_channel])
 
         meta = data.metadata
         
@@ -1242,7 +1242,7 @@ def apply_background_subtract_gate(data_directory,
         pickle_file = file
 
         frame = data.flow_frame
-        gmm_data = frame[['log_fsc', 'log_ssc']]
+        gmm_data = frame[[f'log_{x_channel}', f'log_{y_channel}']]
 
         meta._scatter_cell_fit = gate_scatter_cell_fit
         back_components = meta.scatter_back_fit.n_components
@@ -1269,7 +1269,7 @@ def apply_background_subtract_gate(data_directory,
     pickle_file = back_file
 
     frame = data.flow_frame
-    gmm_data = frame[['log_fsc', 'log_ssc']]
+    gmm_data = frame[[f'log_{x_channel}', f'log_{y_channel}']]
 
     meta._scatter_cell_fit = gate_scatter_cell_fit
     back_components = meta.scatter_back_fit.n_components
@@ -1289,7 +1289,7 @@ def apply_background_subtract_gate(data_directory,
     with open(pickle_file, 'wb') as f:
         pickle.dump(data, f)
         
-    scatter_data = [data.flow_frame[['log_fsc', 'log_ssc']] for data in coli_data]
+    scatter_data = [data.flow_frame[[f'log_{x_channel}', f'log_{y_channel}']] for data in coli_data]
 
     # Plot the 2D histograms for all the E. coli fcs files, and save the
     # plots to the pdf file
@@ -1308,8 +1308,8 @@ def apply_background_subtract_gate(data_directory,
         axs[i//4, i%4].set_xlim(left=2, right=5.5)
         axs[i//4, i%4].set_ylim(bottom=2.4, top=5.)
         axs[i//4, i%4].text(2.1, 4.8, sample_names[i])
-        axs[i//4, i%4].hist2d(data['log_fsc'],
-           data['log_ssc'], bins=[x_bins, y_bins],
+        axs[i//4, i%4].hist2d(data[f'log_{x_channel}'],
+           data[f'log_{y_channel}'], bins=[x_bins, y_bins],
            norm=colors.LogNorm(), rasterized=True);
     pdf.savefig()
     if not show_plots:
@@ -1334,7 +1334,7 @@ def apply_background_subtract_gate(data_directory,
         axs[i//4, i%4].set_xlim(left=2, right=5.5)
         axs[i//4, i%4].set_ylim(bottom=2.4, top=5)
         axs[i//4, i%4].text(2.1, 4.8, sample_names[i])
-        axs[i//4, i%4].hist2d(data.loc[:, 'log_fsc'], data.loc[:, 'log_ssc'], bins=[x_bins, y_bins],
+        axs[i//4, i%4].hist2d(data.loc[:, f'log_{x_channel}'], data.loc[:, f'log_{y_channel}'], bins=[x_bins, y_bins],
                              norm=colors.LogNorm(), rasterized=True)
     pdf.savefig()
     if not show_plots:
@@ -1347,16 +1347,16 @@ def apply_background_subtract_gate(data_directory,
         axs = np.array([ axs ])
 
     for i, data in enumerate(gated_data):
-        labels = gate_scatter_cell_fit.predict(data.loc[:, ['log_fsc', 'log_ssc']]).copy()
+        labels = gate_scatter_cell_fit.predict(data.loc[:, [f'log_{x_channel}', f'log_{y_channel}']]).copy()
         labels[labels < len(gate_back_fit.means_)] = 0
 
-        probs = gate_scatter_cell_fit.predict_proba(data.loc[:, ['log_fsc', 'log_ssc']])
+        probs = gate_scatter_cell_fit.predict_proba(data.loc[:, [f'log_{x_channel}', f'log_{y_channel}']])
         size = 5 * probs.max(1) ** 2   # square emphasizes differences
 
         axs[i//4, i%4].set_xlim(left=2, right=6)
         axs[i//4, i%4].set_ylim(bottom=2.4, top=5)
         axs[i//4, i%4].text(2.1, 4.8, sample_names[i])
-        axs[i//4, i%4].scatter(data['log_fsc'], data['log_ssc'], c=labels, cmap='viridis', s=size*3, rasterized=True)
+        axs[i//4, i%4].scatter(data[f'log_{x_channel}'], data[f'log_{y_channel}'], c=labels, cmap='viridis', s=size*3, rasterized=True)
     pdf.savefig()
     if not show_plots:
         plt.close(fig)
@@ -1898,7 +1898,9 @@ def singlet_gating(data_directory,
                    max_events=100000,
                    init_events=30000,
                    update_progress=True,
-                   show_plots=True):
+                   show_plots=True,
+                   y_channel_h='SSC-H',
+                   y_channel_a='SSC-A'):
 
     """
     This batch process method performs a gating to select
@@ -2045,15 +2047,15 @@ def singlet_gating(data_directory,
     # So the singlet cluster is centered on singlet_difference = 0
     # For other cytometers it might be centered on a different value
     for data in coli_data:
-        data.flow_frame = data.flow_frame.loc[data.flow_frame['SSC-A'] > 0]
-        data.flow_frame['singlet_difference'] = np.log10(data.flow_frame['SSC-A']) - data.flow_frame['log_ssc']
+        data.flow_frame = data.flow_frame.loc[data.flow_frame[y_channel_a] > 0]
+        data.flow_frame['singlet_difference'] = np.log10(data.flow_frame[y_channel_a]) - data.flow_frame[f'log_{y_channel_h}']
     
     # then do all the same manipulations with the back_data
-    back_data.flow_frame = back_data.flow_frame.loc[back_data.flow_frame['SSC-A'] > 0]
-    back_data.flow_frame['singlet_difference'] = np.log10(back_data.flow_frame['SSC-A']) - back_data.flow_frame['log_ssc']
+    back_data.flow_frame = back_data.flow_frame.loc[back_data.flow_frame[y_channel_a] > 0]
+    back_data.flow_frame['singlet_difference'] = np.log10(back_data.flow_frame[y_channel_a]) - back_data.flow_frame[f'log_{y_channel_h}']
 
     # Fit a GMM to the log_ssc vs. singlet_difference
-    singlet_gmm_data2 = [data.flow_frame.loc[:, ['singlet_difference', 'log_ssc', 'is_cell']].copy() for data in coli_data]
+    singlet_gmm_data2 = [data.flow_frame.loc[:, ['singlet_difference', f'log_{y_channel_h}', 'is_cell']].copy() for data in coli_data]
     
     # Note: this for loop is done in the non-Pythonic way, using the itterator, i,
     # becasue that is what it takes to get 2nd line to work to pick out only events
@@ -2062,7 +2064,7 @@ def singlet_gating(data_directory,
         singlet_gmm_data2[i] = singlet_gmm_data2[i].loc[np.isfinite(singlet_gmm_data2[i]['singlet_difference'])]
         singlet_gmm_data2[i] = singlet_gmm_data2[i].loc[singlet_gmm_data2[i]['is_cell']]
 
-    singlet_gmm_data2 = [data.loc[:, ['singlet_difference', 'log_ssc']].copy() for data in singlet_gmm_data2]
+    singlet_gmm_data2 = [data.loc[:, ['singlet_difference', f'log_{y_channel_h}']].copy() for data in singlet_gmm_data2]
     singlet_gmm_data2 = [data[:max_events] for data in singlet_gmm_data2]
     #singlet_gmm_data4 = pd.concat(singlet_gmm_data2)
     singlet_gmm_data4 = pd.concat(singlet_gmm_data2, ignore_index=True)
@@ -2190,10 +2192,10 @@ def singlet_gating(data_directory,
     data = singlet_gmm_data4
 
     x = data['singlet_difference']  # [:num_points]
-    y = data['log_ssc']  # [:num_points])
+    y = data[f'log_{y_channel_h}']  # [:num_points])
 
-    labels = singlet_fit.predict(data.loc[:, ['singlet_difference', 'log_ssc']][:num_points]).copy()
-    probs = singlet_fit.predict_proba(data.loc[:, ['singlet_difference', 'log_ssc']][:num_points])
+    labels = singlet_fit.predict(data.loc[:, ['singlet_difference', f'log_{y_channel_h}']][:num_points]).copy()
+    probs = singlet_fit.predict_proba(data.loc[:, ['singlet_difference', f'log_{y_channel_h}']][:num_points])
     size = 40 * probs.max(1) ** 2   # square emphasizes differences
 
     axs.set_xlim(-0.6, 0.9)
@@ -2225,10 +2227,10 @@ def singlet_gating(data_directory,
                  y=0.92, verticalalignment='bottom', size=16)
     num_points = 10000
 
-    probs = singlet_fit.predict_proba(data.loc[:, ['singlet_difference', 'log_ssc']][:num_points])
+    probs = singlet_fit.predict_proba(data.loc[:, ['singlet_difference', f'log_{y_channel_h}']][:num_points])
     size = 40 * probs.max(1) ** 2   # square emphasizes differences
-    labels = singlet_fit.predict(data.loc[:, ['singlet_difference', 'log_ssc']][:num_points]).copy()
-    labels2 = singlet_fit.predict(data.loc[:, ['singlet_difference', 'log_ssc']][:num_points]).copy()
+    labels = singlet_fit.predict(data.loc[:, ['singlet_difference', f'log_{y_channel_h}']][:num_points]).copy()
+    labels2 = singlet_fit.predict(data.loc[:, ['singlet_difference', f'log_{y_channel_h}']][:num_points]).copy()
     labels2[np.isin(labels2, singlets)] = -5
 
     for ax, c in zip(axs, [labels, labels2]):
@@ -2245,7 +2247,7 @@ def singlet_gating(data_directory,
     for i, (data, file) in enumerate(zip(coli_data, coli_files)):
         frame = data.flow_frame
         meta = data.metadata
-        gmm_data = frame[['singlet_difference', 'log_ssc']].copy().fillna(0)
+        gmm_data = frame[['singlet_difference', f'log_{y_channel_h}']].copy().fillna(0)
 
         meta._scatter_singlet_fit = singlet_fit
 
@@ -2255,7 +2257,7 @@ def singlet_gating(data_directory,
         is_singlet_1 = np.isin(labels, singlets)
         is_singlet_2 = frame['is_cell']
         is_singlet_3 = np.isfinite(frame['singlet_difference'])
-        is_singlet_4 = frame['SSC-A'] > 0
+        is_singlet_4 = frame[y_channel_a] > 0
 
         frame['is_singlet'] = is_singlet_1 & is_singlet_2 & is_singlet_3 & is_singlet_4
 
@@ -2267,7 +2269,7 @@ def singlet_gating(data_directory,
     data = back_data
     frame = data.flow_frame
     meta = data.metadata
-    gmm_data = frame[['singlet_difference', 'log_ssc']].copy().fillna(0)
+    gmm_data = frame[['singlet_difference', f'log_{y_channel_h}']].copy().fillna(0)
 
     meta._scatter_singlet_fit = singlet_fit
 
@@ -2277,7 +2279,7 @@ def singlet_gating(data_directory,
     is_singlet_1 = np.isin(labels, singlets)
     is_singlet_2 = frame['is_cell']
     is_singlet_3 = np.isfinite(frame['singlet_difference'])
-    is_singlet_4 = frame['SSC-A'] > 0
+    is_singlet_4 = frame[y_channel_a] > 0
 
     frame['is_singlet'] = is_singlet_1 & is_singlet_2 & is_singlet_3 & is_singlet_4
 
@@ -2308,15 +2310,15 @@ def singlet_gating(data_directory,
         data2 = data.loc[data['is_singlet']].copy()
 
         x = data['singlet_difference']  # [:num_points]
-        y = data['log_ssc']  # [:num_points])
+        y = data[f'log_{y_channel_h}']  # [:num_points])
         x2 = data2['singlet_difference']  # [:num_points]
-        y2 = data2['log_ssc']  # [:num_points])
+        y2 = data2[f'log_{y_channel_h}']  # [:num_points])
         
         
-        probs = singlet_fit.predict_proba(data.loc[:, ['singlet_difference', 'log_ssc']][:num_points])
+        probs = singlet_fit.predict_proba(data.loc[:, ['singlet_difference', f'log_{y_channel_h}']][:num_points])
         size = 20 * probs.max(1) ** 2   # square emphasizes differences
-        labels = singlet_fit.predict(data.loc[:, ['singlet_difference', 'log_ssc']][:num_points]).copy()
-        labels2 = singlet_fit.predict(data.loc[:, ['singlet_difference', 'log_ssc']][:num_points]).copy()
+        labels = singlet_fit.predict(data.loc[:, ['singlet_difference', f'log_{y_channel_h}']][:num_points]).copy()
+        labels2 = singlet_fit.predict(data.loc[:, ['singlet_difference', f'log_{y_channel_h}']][:num_points]).copy()
         labels2[np.isin(labels2, singlets)] = -5
         
         for ax in axs[i]:
