@@ -924,8 +924,9 @@ def background_subtract_gating(data_directory,
     
     # Mark events with 'is_cell' and 'back_prob' to gate out events that are
     # predicted to belong to the background distribution, and also any that
-    # belong to a cluster with mean log(SSC-H)<ssc_back_cutoff:
-    for i, (data, file) in enumerate(zip(coli_data, coli_files)):
+    # belong to a cluster with mean log(SSC-H)<ssc_back_cutoff.
+    # Also, do all the same manipulations with the back_data.
+    for i, (data, file) in enumerate(zip(coli_data + [back_data], coli_files + [back_file])):
         meta = data.metadata
         pickle_file = file
 
@@ -950,32 +951,6 @@ def background_subtract_gating(data_directory,
         with open(pickle_file, 'wb') as f:
             pickle.dump(data, f)
         #data = pickle.load(open(pickle_file, 'rb'))
-        
-    # then do all the same manipulations with the back_data
-    data = back_data
-    meta = data.metadata
-    pickle_file = back_file
-
-    frame = data.flow_frame
-    gmm_data = frame[[f'log_{x_channel}', f'log_{y_channel}']]
-
-    meta._scatter_cell_fit = scatter_cell_fit
-    back_components = meta.scatter_back_fit.n_components
-
-    back_sel = (scatter_cell_fit.means_[:, 1] < ssc_back_cutoff)|(scatter_cell_fit.means_[:, 0] < fsc_back_cutoff)
-    ssc_back_idx = np.where(back_sel)[0].astype(int)
-    ssc_back_idx = ssc_back_idx[ssc_back_idx >= back_components]
-
-    cluster = meta.scatter_cell_fit.predict(gmm_data)
-
-    frame['is_cell'] = (cluster >= back_components) & (~np.isin(cluster, ssc_back_idx))
-
-    frame['back_prob'] = scatter_cell_fit.predict_proba(gmm_data)[:, :back_components].sum(axis=1)
-    for n in ssc_back_idx:
-        frame['back_prob'] += scatter_cell_fit.predict_proba(gmm_data)[:, n]
-
-    with open(pickle_file, 'wb') as f:
-        pickle.dump(data, f)
         
     # define gated_data for plots and outputs
     gated_data = [data.flow_frame.loc[data.flow_frame['is_cell']] for data in coli_data]
