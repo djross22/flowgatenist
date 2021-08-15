@@ -450,7 +450,8 @@ def background_subtract_gating(data_directory,
                                update_progress=True,
                                show_plots=True,
                                x_channel='FSC-H',
-                               y_channel='SSC-H'):
+                               y_channel='SSC-H',
+                               trim_alpha=None):
 
     """
     This batch process method performs a background subtraction gating to select
@@ -543,6 +544,10 @@ def background_subtract_gating(data_directory,
 
     y_channel : str
         used to identify the SSC channel name
+        
+    trim_alpha : float
+        A value between 0 and 1 indicating the central fraction of the Gaussian 
+        probability distribution for each cell cluster to include in is_cell output
 
     Returns
     -------
@@ -580,6 +585,10 @@ def background_subtract_gating(data_directory,
     
     if update_progress:
         print("\n".join(['    ' + f for f in coli_files]))
+        
+    if trim_alpha == 1:
+        trim_alpha = None
+        print('trim_alpha = 1 is equivalent to no cluster trimming.')
         
     sample_names, start_string = find_sample_names(coli_files)
     
@@ -941,8 +950,24 @@ def background_subtract_gating(data_directory,
         ssc_back_idx = ssc_back_idx[ssc_back_idx >= back_components]
 
         cluster = meta.scatter_cell_fit.predict(gmm_data)
-
+        
         frame['is_cell'] = (cluster >= back_components) & (~np.isin(cluster, ssc_back_idx))
+        
+        # Trim outliers from each cell cluster
+        if trim_alpha is not None:
+            if i==0: print(f'Trimming each cell cluster to its central {trim_alpha} fraction')
+            x_arr = frame[f'log_{x_channel}']
+            y_arr = frame[f'log_{y_channel}']
+            
+            is_central = np.full(len(x_arr), False)
+            for clust, (mu, cov) in enumerate(zip(scatter_cell_fit.means_, scatter_cell_fit.covariances_)):
+                if (clust >= back_components) and (clust not in ssc_back_idx):
+                    interval_array = gauss_interval(x_arr, y_arr, mu, cov)
+                    is_central = ( is_central ) | ( interval_array <= stats.chi2.ppf(trim_alpha, 2) )
+            
+            new_is_cell = ( frame['is_cell'] ) & ( is_central )
+            print( f'    fraction actually kept: {len(frame[new_is_cell]) / len(frame[frame.is_cell])}' )
+            frame['is_cell'] = new_is_cell
 
         frame['back_prob'] = scatter_cell_fit.predict_proba(gmm_data)[:, :back_components].sum(axis=1)
         for n in ssc_back_idx:
@@ -950,7 +975,6 @@ def background_subtract_gating(data_directory,
 
         with open(pickle_file, 'wb') as f:
             pickle.dump(data, f)
-        #data = pickle.load(open(pickle_file, 'rb'))
         
     # define gated_data for plots and outputs
     gated_data = [data.flow_frame.loc[data.flow_frame['is_cell']] for data in coli_data]
