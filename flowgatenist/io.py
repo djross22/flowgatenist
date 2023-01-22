@@ -25,6 +25,7 @@ import copy
 import collections
 import datetime
 import warnings
+import pickle
 
 import numpy as np
 import pandas as pd
@@ -2001,3 +2002,12 @@ class FCSDataFrame():
 
         """
         return os.path.basename(str(self.infile))
+    
+    def save_as_pickle(self):
+        file = self.metadata._infile
+        if file[-4:] == '.fcs':
+            raise ValueError(f'Attempting to overwrite raw fcs file: {file}')
+        
+        print(f'Saving data in {file}')
+        with open(file, 'wb') as f:
+            pickle.dump(self, f)
