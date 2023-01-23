@@ -781,7 +781,7 @@ def background_subtract_gating(data_directory,
     fig.suptitle('Forward and side scatter data from cell samples before auto-gating',
                  y=0.92, verticalalignment='bottom', size=16)
     if axs.ndim == 1:
-        axs = np.array([ axs ])
+        axs = axs
     else:
         axs = axs.flatten()
         axs[0].get_shared_x_axes().join(*axs)
@@ -989,7 +989,7 @@ def background_subtract_gating(data_directory,
     fig.suptitle('Forward and side scatter data from cell samples after auto-gating',
                  y=0.92, verticalalignment='bottom', size=16)
     if axs.ndim == 1:
-        axs = np.array([ axs ])
+        axs = axs
     else:
         axs = axs.flatten()
 
@@ -1013,7 +1013,7 @@ def background_subtract_gating(data_directory,
     fig.suptitle('GMM fit results for cell sample data',
                  y=0.92, verticalalignment='bottom', size=16)
     if axs.ndim == 1:
-        axs = np.array([ axs ])
+        axs = axs
     else:
         axs = axs.flatten()
 
