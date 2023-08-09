@@ -31,7 +31,7 @@ from scipy.optimize import curve_fit
 import numpy as np
 import pandas as pd
 
-import pystan
+import cmdstanpy
 import pickle
 
 import seaborn as sns
@@ -39,6 +39,8 @@ import seaborn as sns
 from sklearn.mixture import GaussianMixture as SkMixture
 
 import warnings
+
+from . import stan_utility
 
 
 plt.rcParams['axes.labelsize'] = 14
@@ -243,19 +245,7 @@ def get_stan_model(stan_file):
     '''
     return_directory = os.getcwd()
     
-    os.chdir(os.path.join(get_python_directory(), 'Stan models'))
-    stan_pickle_file = stan_file[:stan_file.rfind('.')] + '.stan_model_pkl'
-    if os.path.exists(stan_pickle_file):
-        if (os.path.getmtime(stan_file) > os.path.getmtime(stan_pickle_file)):
-            sm_model = pystan.StanModel(file=stan_file)
-            with open(stan_pickle_file, 'wb') as f:
-                pickle.dump(sm_model, f)
-        else:
-            sm_model = pickle.load(open(stan_pickle_file, 'rb'))
-    else:
-        sm_model = pystan.StanModel(file=stan_file)
-        with open(stan_pickle_file, 'wb') as f:
-            pickle.dump(sm_model, f)
+    sm_model = stan_utility.compile_model(stan_file)
             
     os.chdir(return_directory)
     
@@ -2470,10 +2460,11 @@ def batch_stan_background_fit(data_directory,
                               fit_max=None,
                               fit_min=None,
                               hist_bins=100,
-                              control=dict(adapt_delta=0.99),
+                              adapt_delta=0.99,
                               use_singlets=True,
                               use_cells=True,
-                              iter=2000):
+                              iter_warmup=1000,
+                              iter_sampling=1000):
 
     
     if update_progress:
@@ -2542,14 +2533,15 @@ def batch_stan_background_fit(data_directory,
     stan_back_data = dict(signal=stan_back_signal, N=len(stan_back_signal))
 
     sm_back = get_stan_model('fit exp modified normal.stan')
-    stan_back_fit = sm_back.sampling(data=stan_back_data, iter=iter, chains=4, control=control)
+    stan_back_fit = sm_back.sample(data=stan_back_data, iter_warmup=iter_warmup, iter_sampling=iter_sampling,
+                                   chains=4, adapt_delta=adapt_delta)
     
     start_string = findcommonstart(coli_files + blank_file_list)
     back_sample = back_file[len(start_string):back_file.rfind('.')]
     
     pickle_stan_sampling(fit=stan_back_fit, model=sm_back, file=back_sample + '.' + fl_channel + '.back_fit.stan_samp_pkl')
         
-    #post_pred_back = stan_back_fit.extract(permuted=True)['post_pred_signal']
+    #post_pred_back = stan_back_fit.stan_variable('post_pred_signal')
     frame = back_data.flow_frame
     xmin = stan_back_signal.min()
     xmax = stan_back_signal.max()
@@ -2563,9 +2555,9 @@ def batch_stan_background_fit(data_directory,
                              color=sns.color_palette()[2])[0]
     bin_values = bin_values[bin_values>0]
     
-    mu = np.mean(stan_back_fit.extract(permuted=True)['mu'])
-    sig = np.exp(np.mean(np.log(stan_back_fit.extract(permuted=True)['sigma'])))
-    lamb = np.exp(np.mean(np.log(stan_back_fit.extract(permuted=True)['lamb'])))
+    mu = np.mean(stan_back_fit.stan_variable('mu'))
+    sig = np.exp(np.mean(np.log(stan_back_fit.stan_variable('sigma'))))
+    lamb = np.exp(np.mean(np.log(stan_back_fit.stan_variable('lamb'))))
     y_back = fit_dist.back_dist(bins, mu=mu, sig=sig, lamb=lamb)
     axs_b2.plot(bins, y_back, linewidth=3, color='k');
     #axs_b2.hist(post_pred_back, density=True, bins=bins, alpha=0.3)
@@ -2579,7 +2571,7 @@ def batch_stan_background_fit(data_directory,
     if not show_plots:
         plt.close(fig_b2)
     
-    back_samples = stan_back_fit.extract(permuted=True)
+    back_samples = stan_back_fit.stan_variables()
     pairplot_data = pd.DataFrame({ key: back_samples[key] for key in ['mu', 'sigma', 'beta'] })
     pair_plot = sns.pairplot(pairplot_data)
     fig_b3 = pair_plot.fig
