@@ -16,7 +16,6 @@ from copy import deepcopy
 import flowgatenist as flow
 from flowgatenist import gaussian_mixture as nist_gmm
 import flowgatenist.distributions as fit_dist
-import flowgatenist.stan_utility as stan_utility
 
 import matplotlib.cm as color_maps
 import matplotlib.pyplot as plt
@@ -31,7 +30,6 @@ from scipy.optimize import curve_fit
 import numpy as np
 import pandas as pd
 
-import cmdstanpy
 import pickle
 
 import seaborn as sns
@@ -39,8 +37,6 @@ import seaborn as sns
 from sklearn.mixture import GaussianMixture as SkMixture
 
 import warnings
-
-from . import stan_utility
 
 
 plt.rcParams['axes.labelsize'] = 14
@@ -243,6 +239,8 @@ def get_stan_model(stan_file):
     '''
     Utility function used to get Stan model code
     '''
+    from . import stan_utility
+
     return_directory = os.getcwd()
     
     sm_model = stan_utility.compile_model(stan_file)
