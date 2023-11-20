@@ -3107,6 +3107,12 @@ def fit_bead_data(data_directory,
                 ax.plot([ m[0]-np.sqrt(cv[0]), m[0]+np.sqrt(cv[0]) ], [ m[1]-np.sqrt(cv[1]), m[1]+np.sqrt(cv[1]) ], color='orange')
                 ax.plot([ m[0]-np.sqrt(cv[0]), m[0]+np.sqrt(cv[0]) ], [ m[1]+np.sqrt(cv[1]), m[1]-np.sqrt(cv[1]) ], color='orange')
         
+        if len(bead_intensities_b) >= 5:
+            x_max = bead_intensities_b[-4]
+            y_max = bead_intensities_y[-4]
+        else:
+            x_max = bead_intensities_b[2]
+            y_max = bead_intensities_y[2]
         init_axs[0].set_xlim(-3*x_sd_min, bead_intensities_b[-4] + 3*x_sd_min)
         init_axs[0].set_ylim(-3*y_sd_min, bead_intensities_y[-4] + 3*y_sd_min)
         
