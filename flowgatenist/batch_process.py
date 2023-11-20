@@ -3155,8 +3155,8 @@ def fit_bead_data(data_directory,
             else:
                 x_max = bead_intensities_v[2]
                 y_max = bead_intensities_y[2]
-            init_axs[3].set_xlim(-3*x_sd_min_v, bead_intensities_v[-4] + 3*x_sd_min_v)
-            init_axs[3].set_ylim(-3*y_sd_min, bead_intensities_y[-4] + 3*y_sd_min)
+            init_axs[3].set_xlim(-3*x_sd_min_v, x_max + 3*x_sd_min_v)
+            init_axs[3].set_ylim(-3*y_sd_min, y_max + 3*y_sd_min)
             
             init_axs[4].set_xlim(-x_sd_max_v, bead_intensities_v[-3] + 3*x_sd_max_v)
             init_axs[4].set_ylim(-y_sd_max, bead_intensities_y[-3] + 3*y_sd_max)
