@@ -3624,6 +3624,10 @@ def fit_bead_data(data_directory,
     axs[0,1].scatter(log_x_b, log_y_b, s=90);
     axs[0,1].plot(log_x_plot_data_b, bead_func2(log_x_plot_data_b, *popt_b), 'g-')
     axs[0,2].scatter(log_x_b, log_y_b - bead_func2(log_x_b, *popt_b), s=90, c='g');
+    rms = np.sqrt(np.mean((log_y_b - bead_func2(log_x_b, *popt_b))**2))
+    axs[0,2].text(0.5, 0.8, f'RMS deviation: {rms:.4f}', horizontalalignment='center',
+                  verticalalignment='center',
+                  transform=axs[0,2].transAxes, size=16)
     
     axs[1,0].scatter(x_y, y_y, s=90);
     axs[1,0].plot(x_plot_data_y, bead_func1(x_plot_data_y, *popt_y), 'r-')
@@ -3631,6 +3635,10 @@ def fit_bead_data(data_directory,
     axs[1,1].scatter(log_x_y, log_y_y, s=90);
     axs[1,1].plot(log_x_plot_data_y, bead_func2(log_x_plot_data_y, *popt_y), 'r-')
     axs[1,2].scatter(log_x_y, log_y_y - bead_func2(log_x_y, *popt_y), s=90, c='r');
+    rms = np.sqrt(np.mean((log_y_y - bead_func2(log_x_y, *popt_y))**2))
+    axs[1,2].text(0.5, 0.8, f'RMS deviation: {rms:.4f}', horizontalalignment='center',
+                  verticalalignment='center',
+                  transform=axs[1,2].transAxes, size=16)
     
     if fit_VL1:
         axs[2,0].scatter(x_v, y_v, s=90);
