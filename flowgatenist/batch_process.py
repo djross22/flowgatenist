@@ -2664,7 +2664,7 @@ def fit_bead_data(data_directory,
                   FSC_channel='FSC-H',
                   SSC_channel='SSC-H',
                   SSCwidth_channel='SSC-W',
-                  covariance=1000,
+                  max_singlet_x_variance=30,
                   singlet_low=200,
                   singlet_high=600,
                   fluoro_channel_1='BL1-A',
@@ -2806,8 +2806,8 @@ def fit_bead_data(data_directory,
     SSCwidth_channel : str
         used to identify the SSC width channel name
 
-    covariance : float
-        the covariance used to set the singlet bead gate
+    max_singlet_x_variance : float
+        the max_singlet_x_variance used to set the singlet bead gate
 
     singlet_low : float
         lower bound on the SSC-W parameter of the singlet population
@@ -2958,10 +2958,20 @@ def fit_bead_data(data_directory,
     singlet_fit_frame['covariance'] = [ c[0,0] for c in singlet_fit.covariances_ ]
     singlet_fit_frame['weight'] = singlet_fit.weights_
     
-    singlet_select_frame = singlet_fit_frame[singlet_fit_frame['covariance']<covariance]
+    singlet_select_frame = singlet_fit_frame[singlet_fit_frame['covariance']<max_singlet_x_variance]
+    if len(singlet_select_frame) == 0:
+        raise ValueError(f'There are no clusters in the {SSC_channel} vs. {SSCwidth_channel} data with {SSCwidth_channel}-variance < max_singlet_x_variance ({max_singlet_x_variance})')
     singlet_select_frame = singlet_select_frame[singlet_select_frame['mean']>singlet_low]
     singlet_select_frame = singlet_select_frame[singlet_select_frame['mean']<singlet_high]
+    #singlet_select_frame.sort_values(by='weight', ascending=False, inplace=True)
     singlet_cluster = singlet_select_frame.index[0]
+    singlet_select_row = singlet_select_frame.iloc[0]
+    
+    s_mu = singlet_select_row['mean']
+    s_cov = singlet_select_row['covariance']
+    print(f'Found singlet cluster with x-mean: {s_mu:.2f} and x-variance: {s_cov:.2f}')
+    print(f'singlet_cluster: {singlet_cluster}')
+    print(f'singlet_fit.weights_: {singlet_fit.weights_}')
     
     bead_data.flow_frame['is_singlet_cluster'] = (bead_data.flow_frame['is_main_cluster']) & (singlet_fit.predict(bead_data.flow_frame.loc[:, [SSCwidth_channel, SSC_channel]]) == singlet_cluster)
     
