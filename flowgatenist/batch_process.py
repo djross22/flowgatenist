@@ -2963,7 +2963,7 @@ def fit_bead_data(data_directory,
         raise ValueError(f'There are no clusters in the {SSC_channel} vs. {SSCwidth_channel} data with {SSCwidth_channel}-variance < max_singlet_x_variance ({max_singlet_x_variance})')
     singlet_select_frame = singlet_select_frame[singlet_select_frame['mean']>singlet_low]
     singlet_select_frame = singlet_select_frame[singlet_select_frame['mean']<singlet_high]
-    #singlet_select_frame.sort_values(by='weight', ascending=False, inplace=True)
+    singlet_select_frame.sort_values(by='weight', ascending=False, inplace=True)
     singlet_cluster = singlet_select_frame.index[0]
     singlet_select_row = singlet_select_frame.iloc[0]
     
