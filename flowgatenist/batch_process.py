@@ -2366,7 +2366,7 @@ def singlet_gating(data_directory,
         print('Done. ' + str(pd.Timestamp.now().round('s')))
 
 
-def draw_ellipse(position, covariance, ax=None, **kwargs):
+def draw_ellipse(position, covariance, ax=None, nsig_list=[1, 2, 3], **kwargs):
     # Code for this function copied from:
     #     https://jakevdp.github.io/PythonDataScienceHandbook/05.12-gaussian-mixtures.html
     #     A copy of the license terms from that code is here:
@@ -2398,7 +2398,7 @@ def draw_ellipse(position, covariance, ax=None, **kwargs):
         width, height = 2 * np.sqrt(covariance)
 
     # Draw the Ellipse
-    for nsig in range(1, 4):
+    for nsig in nsig_list:
         ax.add_patch(Ellipse(position, nsig * width, nsig * height,
                              angle, **kwargs))
 
@@ -2937,7 +2937,7 @@ def fit_bead_data(data_directory,
         draw_ellipse(pos, covar, alpha=w * w_factor, edgecolor='k', ax=axs[1])
         draw_ellipse(pos, covar, alpha=0.5, facecolor='none', edgecolor='k', ax=axs[1])
     draw_ellipse(bead_fit.means_[main_cluster], bead_fit.covariances_[main_cluster],
-                 facecolor='none', edgecolor='k', ax=axs[0])
+                 facecolor='none', edgecolor='g', ax=axs[0], nsig_list=[3], lw=6, alpha=0.75)
         
     pdf.savefig(fig)
     if not show_plots:
@@ -2995,7 +2995,7 @@ def fit_bead_data(data_directory,
         draw_ellipse(pos, covar, alpha=w * w_factor, edgecolor='k', ax=axs[1])
         draw_ellipse(pos, covar, alpha=0.5, facecolor='none', edgecolor='k', ax=axs[1])
     draw_ellipse(singlet_fit.means_[singlet_cluster], singlet_fit.covariances_[singlet_cluster],
-                 facecolor='none', edgecolor='k', ax=axs[0])
+                 facecolor='none', edgecolor='g', ax=axs[0], nsig_list=[3], lw=6, alpha=0.75)
             
     pdf.savefig(fig)
     if not show_plots:
