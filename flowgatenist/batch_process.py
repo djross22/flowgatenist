@@ -3565,6 +3565,8 @@ def fit_bead_data(data_directory,
     for ax in axs.flatten():
         ax.set_xlabel('Measured Bead Brightness')
         ax.set_ylabel('Bead Calibration Value')
+    for ax in axs.transpose()[-1]:
+        ax.set_ylabel('Bead Calibration Log Deviation')
     
     if num_bead_populations>2:
         x_plot_data_b = np.linspace(0, 1.2*bead_intensities_b[2], 20)
