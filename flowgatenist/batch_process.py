@@ -3676,10 +3676,11 @@ def fit_bead_data(data_directory,
     elif debug:
         return ( gmm, gmm_data )
     else:
-        return (bead_func1(bead_intensities_b, *popt_b),
-                bead_func1(bead_intensities_y, *popt_y),
-                bead_intensities_b, bead_intensities_y,
-                var_b, var_y, fit_cov)
+        print(f'Bead fit values, {fluoro_channel_1}-MEF: {bead_func1(bead_intensities_b, *popt_b)}')
+        print(f'Bead fit values, {fluoro_channel_2}-MEF: {bead_func1(bead_intensities_y, *popt_y)}')
+        print(f'Bead peak input values, {fluoro_channel_1}: {bead_intensities_b}')
+        print(f'Bead peak input values, {fluoro_channel_2}: {bead_intensities_y}')
+        print(f'Bead peak input covariance, {fit_cov}')
     
 
 def bead_func1(x, a, b):
