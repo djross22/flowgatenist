@@ -51,36 +51,54 @@ def get_python_directory():
 
 return_directory = os.getcwd()
 
-# Try local config directory first, use default config files if local
-#     version does not exist
-local_dir_str = 'Local Config Files'
-default_dir_str = 'Config Files'
-local_config_exists = os.path.isdir(os.path.join(get_python_directory(), local_dir_str))
+def get_bead_calibration_data(bead_lot=None):
+    bead_file = 'bead_calibration_data.csv'
+    if bead_lot is not None:
+        if os.path.isfile(f'bead_calibration_data.{bead_lot}.csv'):
+            bead_file = f'bead_calibration_data.{bead_lot}.csv'
+    df = pd.read_csv(bead_file)
+    bead_dir = os.getcwd()
+    print(f'Loading bead calibration data from folder: {bead_dir}\n    and file: {bead_file}')
+    return df
 
-if local_config_exists:
-    os.chdir(os.path.join(get_python_directory(), local_dir_str))
-    try:
-        bead_calibration_frame = pd.read_csv('bead_calibration_data.csv')
-    except:
-        os.chdir(os.path.join(get_python_directory(), default_dir_str))
-        bead_calibration_frame = pd.read_csv('bead_calibration_data.csv')
+def get_config_files(bead_lot=None):
+    # Try local config directory first, use default config files if local
+    #     version does not exist
+    local_dir_str = 'Local Config Files'
+    default_dir_str = 'Config Files'
+    local_config_exists = os.path.isdir(os.path.join(get_python_directory(), local_dir_str))
+
+
+    if local_config_exists:
         os.chdir(os.path.join(get_python_directory(), local_dir_str))
-    try:
-        with open('top_directory.txt', 'r') as file:
-            top_directory = file.read().replace('\n', '')
-    except:
-        os.chdir(os.path.join(get_python_directory(), default_dir_str))
-        with open('top_directory.txt', 'r') as file:
-            top_directory = file.read().replace('\n', '')
-        os.chdir(os.path.join(get_python_directory(), local_dir_str))
+        try:
+            bead_calibration_frame = get_bead_calibration_data(bead_lot=bead_lot)
+        except:
+            os.chdir(os.path.join(get_python_directory(), default_dir_str))
+            bead_calibration_frame = get_bead_calibration_data(bead_lot=bead_lot)
+            os.chdir(os.path.join(get_python_directory(), local_dir_str))
         
-else:
-    os.chdir(os.path.join(get_python_directory(), default_dir_str))
-    bead_calibration_frame = pd.read_csv('bead_calibration_data.csv')
-    with open('top_directory.txt', 'r') as file:
-        top_directory = file.read().replace('\n', '')
+        try:
+            with open('top_directory.txt', 'r') as file:
+                top_directory = file.read().replace('\n', '')
+        except:
+            os.chdir(os.path.join(get_python_directory(), default_dir_str))
+            with open('top_directory.txt', 'r') as file:
+                top_directory = file.read().replace('\n', '')
+            os.chdir(os.path.join(get_python_directory(), local_dir_str))
+            
+    else:
+        os.chdir(os.path.join(get_python_directory(), default_dir_str))
+        bead_calibration_frame = get_bead_calibration_data(bead_lot=bead_lot)
+        with open('top_directory.txt', 'r') as file:
+            top_directory = file.read().replace('\n', '')
+
+    os.chdir(return_directory)
     
-os.chdir(return_directory)
+    return bead_calibration_frame, top_directory
+
+bead_calibration_frame, top_directory = get_config_files()
+
 
 def central_2d_guassian(df_list,
                         alpha=0.3, 
@@ -2617,6 +2635,7 @@ def estimate_upper_truncated_normal(data, truncation):
 
 def fit_bead_data(data_directory,
                   bead_file=None,
+                  bead_lot=None,
                   num_bead_clusters=3,
                   bead_init=100,
                   num_singlet_clusters=4,
@@ -2837,7 +2856,18 @@ def fit_bead_data(data_directory,
         plt.ioff() 
     
     if bead_file is None:
-        bead_file = glob.glob('*bead*.fcs_pkl')[0]
+        bead_file = glob.glob('*bead*Lot*.fcs_pkl')
+        if len(bead_file) > 0:
+            bead_file = bead_file[0]
+        else:
+            bead_file = glob.glob('*bead*.fcs_pkl')[0]
+        
+    if bead_lot is None:
+        if 'Lot' in bead_file:
+            bead_lot = bead_file[bead_file.find('Lot')+3:bead_file.rfind('-')]
+    
+    bead_calibration_frame, temp = get_config_files(bead_lot=bead_lot)
+    os.chdir(data_directory)
         
     pdf_file = bead_file[:bead_file.rfind('.')] + '.plots.pdf'
     pdf = PdfPages(pdf_file)
