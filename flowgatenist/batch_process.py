@@ -2480,7 +2480,8 @@ def batch_stan_background_fit(data_directory,
                               use_singlets=True,
                               use_cells=True,
                               iter_warmup=1000,
-                              iter_sampling=1000):
+                              iter_sampling=1000,
+                              min_scaled_beta=0):
 
     
     if update_progress:
@@ -2546,7 +2547,7 @@ def batch_stan_background_fit(data_directory,
     if fit_min is not None:
         stan_back_signal = stan_back_signal[stan_back_signal > fit_min]
     stan_back_signal = stan_back_signal.values
-    stan_back_data = dict(signal=stan_back_signal, N=len(stan_back_signal))
+    stan_back_data = dict(signal=stan_back_signal, N=len(stan_back_signal), min_scaled_beta=min_scaled_beta)
 
     sm_back = get_stan_model('fit exp modified normal.stan')
     stan_back_fit = sm_back.sample(data=stan_back_data, iter_warmup=iter_warmup, iter_sampling=iter_sampling,

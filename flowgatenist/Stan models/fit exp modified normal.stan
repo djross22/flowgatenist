@@ -4,7 +4,7 @@
 data {
   int<lower=1> N;             //number of cells
   vector[N] signal;           //flowcytometry signal in fluorescence channel from blanks
-
+  real min_scaled_beta;       // lower limit on scaled_beta parameter
 
 }
 
@@ -23,7 +23,7 @@ transformed data {
 parameters {
   real scaled_mu;                   // mean
   real<lower=0> scaled_sigma;       // standard deviation
-  real<lower=0> scaled_beta;        // inverse shape (scale of exponential dist.)
+  real<lower=min_scaled_beta> scaled_beta;        // inverse shape (scale of exponential dist.)
   
 
 }
