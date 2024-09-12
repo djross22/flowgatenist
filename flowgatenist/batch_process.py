@@ -2589,7 +2589,13 @@ def batch_stan_background_fit(data_directory,
     
     back_samples = stan_back_fit.stan_variables()
     pairplot_data = pd.DataFrame({ key: back_samples[key] for key in ['mu', 'sigma', 'beta'] })
-    pair_plot = sns.pairplot(pairplot_data)
+    
+    chain_list = []
+    for n in range(4):
+        chain_list += [n]*iter_sampling
+    pairplot_data['chain'] = chain_list
+    
+    pair_plot = sns.pairplot(pairplot_data, hue='chain', palette=sns.color_palette()[:4])
     fig_b3 = pair_plot.fig
     fig_b3.suptitle('Exponentially modified normal fit: posterior samples', y=1.05)
     pdf.savefig(fig_b3)
