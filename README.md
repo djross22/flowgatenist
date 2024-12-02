@@ -29,6 +29,14 @@ Bibtex entry:
 ### Install Python
 We recommend installing Python with the latest Annaconda distribution from: https://www.anaconda.com/products/individual.
 
+### Dependencies
+FlowGateNIST has been most recently tested with python version 3.11.4
+
+FlowGateNIST also requires several other python packages to work, and some of those require specific versions. So, we recommend using the flowgatenist_env.yml file included with this repository to install those packages in an environment for running FlowGateNIST:
+```
+conda env create -f flowgatenist_env.yml
+```
+
 ### Download and install FlowGateNIST
 Download the FlowGateNIST package from GitHub ([link](https://github.com/djross22/flowgatenist)) and save the source code in a local directory on your computer (e.g., on a Windows PC, C:\Users\username\Documents\Python Scripts\flowgatenist).
 
