@@ -324,7 +324,8 @@ def auto_find_files(ext='fcs_pkl', exclude_string=None, samples=None):
 
 
 def fcs_to_dataframe(data_directory, samples=None, blank_file=None,
-                     beads_file=None, exclude_string=None):
+                     beads_file=None, exclude_string=None, max_count_per_file=None,
+                     start_time=None, end_time=None):
 
     """
     This batch process method converts fcs files into Pandas DataFrames and pickles them.
@@ -353,6 +354,20 @@ def fcs_to_dataframe(data_directory, samples=None, blank_file=None,
     exclude_string : string
         string indicating files to be excluded form conversion
         If the filename includes exclude_string, it will not be converted
+        
+    max_count_per_file : int or None
+        the maxmimum number of events to save per file
+        If max_count_per_file is None, it is ignored.
+        
+    start_time : int or float
+        the earliest time to log events in each file
+        If start_time is None, it is ignored.
+        With the Attune cytometer, the 'Time' column in the dataframe is in milliseconds after the start of each sample.
+        
+    end_time : int or float
+        the latest time to log events in each file
+        If start_time is None, it is ignored.
+        With the Attune cytometer, the 'Time' column in the dataframe is in milliseconds after the start of each sample.
 
     Returns
     -------
@@ -374,6 +389,14 @@ def fcs_to_dataframe(data_directory, samples=None, blank_file=None,
         #data.metadata._infile = file
         if data.metadata.acquisition_start_time < earliest_sample_time:
             earliest_sample_time = data.metadata.acquisition_start_time
+            
+        if max_count_per_file is not None:
+            data.flow_frame = data.flow_frame.iloc[:max_count_per_file].copy()
+            
+        if start_time is not None:
+            data.flow_frame = data.flow_frame[data.flow_frame['Time']>=start_time].copy()
+        if end_time is not None:
+            data.flow_frame = data.flow_frame[data.flow_frame['Time']<=end_time].copy()
         
         pickle_file = file[:file.rfind('.')] + '.fcs_pkl' 
         with open(pickle_file, 'wb') as f:
